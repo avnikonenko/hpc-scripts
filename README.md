@@ -2,17 +2,61 @@
 
 Utilities for working with high-performance computing (HPC) environments.
 
+## Dependencies
+
+Install the required Python packages with pip:
+
+| Feature | Packages | Install command |
+| ------- | -------- | ---------------- |
+| Core utilities | psutil | `pip install psutil` |
+| Plotting for `psutil-monitor` | matplotlib, numpy | `pip install matplotlib numpy` |
+
+The `pbs-bulk-user-stats` command also expects the PBS `qstat` utility to be
+available in your environment.
+
 ## Installation
 
 Clone the repository and install with pip:
 
 ```bash
-pip install .
+pip install .            # core utilities
+# or include plotting support for psutil-monitor
+pip install .[plot]
 ```
 
-This will provide the following command line tools:
+The base installation depends on [psutil](https://pypi.org/project/psutil/).
+The optional `plot` extra pulls in `matplotlib` and `numpy` for the `--plot`
+feature of `psutil-monitor`.
 
-- `pbs-bulk-user-stats` – summarize CPU and memory usage for PBS jobs.
-- `psutil-monitor` – real-time CPU and memory monitor for the system or a process tree.
+## CLI tools
 
-See the `--help` option of each command for details and examples.
+### `pbs-bulk-user-stats`
+
+Summarize CPU and memory usage for PBS jobs. The command relies on `qstat`
+being available in your `PATH`.
+
+Examples:
+
+```bash
+# Summarize a specific job
+pbs-bulk-user-stats --job 12345
+
+# Summarize all jobs for a user and write CSV output
+pbs-bulk-user-stats --user myuser --csv stats.csv
+```
+
+### `psutil-monitor`
+
+Real-time CPU and memory monitor for the system or a process tree.
+
+Examples:
+
+```bash
+# System-wide monitoring with CSV and PNG output
+psutil-monitor --mode system --interval 2 --csv node.csv --plot node.png
+
+# Monitor the current process tree (useful inside a PBS job)
+psutil-monitor --mode proc --pid $$ --include-children --csv job.csv
+```
+
+Use the `--help` option of each command to see all available options.

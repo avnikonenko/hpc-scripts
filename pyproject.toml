@@ -14,6 +14,12 @@ dependencies = [
     "psutil",
 ]
 
+[project.optional-dependencies]
+plot = [
+    "matplotlib",
+    "numpy",
+]
+
 [project.scripts]
 pbs-bulk-user-stats = "hpc_scripts.pbs_bulk_user_stats:main"
 psutil-monitor = "hpc_scripts.psutil_monitor:main"
