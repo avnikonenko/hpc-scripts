@@ -1,6 +1,10 @@
 # hpc-scripts
 
-Utilities for working with high-performance computing (HPC) environments.
+Utilities for working with high-performance computing (HPC) environments. The scripts
+help inspect PBS job efficiency and monitor CPU and memory usage on a running
+system or process tree.
+
+**Tags:** hpc, pbs, monitoring, cpu, memory
 
 ## Installation
 
