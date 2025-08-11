@@ -39,10 +39,10 @@ Examples:
 
 ```bash
 # Summarize a specific job
-pbs-bulk-user-stats --job 12345
+pbs-bulk-user-stats --job 12345 --csv stats.csv 
 
 # Summarize all jobs for a user and write CSV output
-pbs-bulk-user-stats --user myuser --csv stats.csv
+pbs-bulk-user-stats --user myuser --include-finished
 ```
 
 ### `psutil-monitor`
@@ -53,7 +53,7 @@ Examples:
 
 ```bash
 # System-wide monitoring with CSV and PNG output
-psutil-monitor --mode system --interval 2 --csv node.csv --plot node.png
+psutil-monitor --mode system --csv node.csv --plot node.png
 
 # Monitor the current process tree (useful inside a PBS job)
 psutil-monitor --mode proc --pid $$ --include-children --csv job.csv
