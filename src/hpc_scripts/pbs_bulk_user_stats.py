@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Summarize PBS job CPU and memory usage for a user or single job."""
+
 import argparse
 import os
 import re

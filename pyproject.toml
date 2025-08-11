@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hpc-scripts"
+version = "0.1.0"
+description = "Utilities for HPC clusters including PBS job statistics and a psutil-based resource monitor."
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.9"
+authors = [{name = "hpc-scripts contributors"}]
+dependencies = [
+    "psutil",
+]
+
+[project.scripts]
+pbs-bulk-user-stats = "hpc_scripts.pbs_bulk_user_stats:main"
+psutil-monitor = "hpc_scripts.psutil_monitor:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
