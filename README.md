@@ -40,10 +40,10 @@ being available in your `PATH`.
 Examples:
 
 ```bash
-# Summarize a specific job
+# Summarize a specific job and write CSV output
 pbs-bulk-user-stats --job 12345 --csv stats.csv 
 
-# Summarize all jobs for a user and write CSV output
+# Summarize all jobs for a user
 pbs-bulk-user-stats --user myuser --include-finished
 ```
 
