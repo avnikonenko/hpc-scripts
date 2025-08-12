@@ -109,7 +109,7 @@ def main():
     ncpu_system = ncpu_affinity
 
     # Print detected resources
-    print(f"CPUs available (affinity): {ncpu_affinity} -> {affinity_cpus}")
+    print(f"CPUs available (affinity): {ncpu_affinity}")
     vm_total = psutil.virtual_memory().total
     print(f"Total memory available: {bytes_human(vm_total)}")
 
