@@ -89,7 +89,7 @@ def proc_tree_cpu_mem(pid: int, prev_cpu: Dict[int,float]) -> tuple[float, int, 
 # ---------- CLI ----------
 def main():
     ap = argparse.ArgumentParser(description="Real-time CPU & memory monitor (system or process-tree) with CSV + optional plot.")
-    ap.add_argument("--mode", choices=["system","proc"], required=True, help="What to monitor")
+    ap.add_argument("--mode", choices=["system","proc"], default="system", help="What to monitor")
     ap.add_argument("--pid", type=int, help="Root PID for --mode proc (defaults to current process)")
     ap.add_argument("--include-children", action="store_true", help="Sum over children recursively (recommended for multiprocessing)")
     ap.add_argument("--interval", type=float, default=2.0, help="Sampling interval in seconds (default: 2)")
