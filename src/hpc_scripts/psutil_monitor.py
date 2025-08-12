@@ -8,7 +8,8 @@ Features
 - Prints live metrics, writes CSV, optional PNG plot at the end
 - Reports **busy CPU equivalents** per sample (e.g., 6.4 means ~6.4 cores busy)
 - Prints **overall average busy CPUs** at the end
-- Uses PBS_NP as CPU basis in proc mode if available (or psutil.cpu_count)
+- Uses CPU affinity (os.sched_getaffinity) as the default CPU basis (overridable by PBS_NP or --ncpu-basis)
+- Prints the detected CPU set and total available memory at startup
 
 Examples
   # System-wide monitoring, 2s interval, save CSV + PNG
@@ -98,9 +99,19 @@ def main():
     ap.add_argument("--ncpu-basis", type=int, default=0, help="CPU basis for proc % (defaults: PBS_NP or logical CPU count)")
     args = ap.parse_args()
 
-    # Resolve CPU bases
-    ncpu_proc_basis = args.ncpu_basis or int(os.getenv("PBS_NP", "0")) or (psutil.cpu_count(logical=True) or 1)
-    ncpu_system = psutil.cpu_count(logical=True) or 1
+    # Resolve CPU affinity / bases
+    try:
+        affinity_cpus = sorted(os.sched_getaffinity(0))
+    except AttributeError:  # pragma: no cover - non-Linux platforms
+        affinity_cpus = list(range(psutil.cpu_count(logical=True) or 1))
+    ncpu_affinity = len(affinity_cpus)
+    ncpu_proc_basis = args.ncpu_basis or int(os.getenv("PBS_NP", "0")) or ncpu_affinity
+    ncpu_system = ncpu_affinity
+
+    # Print detected resources
+    print(f"CPUs available (affinity): {ncpu_affinity}")
+    vm_total = psutil.virtual_memory().total
+    print(f"Total memory available: {bytes_human(vm_total)}")
 
     # Prepare CSV (add busy_cpus column)
     fields = ["ts","mode","cpu_percent","busy_cpus","mem_percent","mem_used_bytes","proc_count"]
@@ -157,8 +168,10 @@ def main():
 
         if args.mode == "system":
             # cpu_percent blocks for 'interval' to compute average over that window
-            cpu_pct = psutil.cpu_percent(interval=args.interval)
-            busy_cpus = (cpu_pct / 100.0) * ncpu_system  # average busy cores over the interval
+            percpu = psutil.cpu_percent(interval=args.interval, percpu=True)
+            allowed = [percpu[i] for i in affinity_cpus if i < len(percpu)]
+            cpu_pct = (sum(allowed) / len(allowed)) if allowed else 0.0
+            busy_cpus = sum(allowed) / 100.0  # average busy cores over the interval
             vm = psutil.virtual_memory()
             mem_pct = float(vm.percent)
             mem_used = int(vm.used)
@@ -183,10 +196,11 @@ def main():
         samples += 1
         busy_sum += busy_cpus
 
-        # Print line
+        # Print line in canonical format
+        provided = ncpu_system if args.mode == "system" else ncpu_proc_basis
         print(
-            f"{now_iso()}  CPU {cpu_pct:6.2f}%  busyCPUs {busy_cpus:6.2f}   "
-            f"MEM {mem_pct:6.2f}%  ({bytes_human(mem_used)} used)"
+            f"{now_iso()}  CPU {cpu_pct:6.2f}%  busyCPUs {busy_cpus:6.2f}  (provided {provided})  "
+            f"MEM {mem_pct:6.2f}%  used {bytes_human(mem_used)} / total {bytes_human(vm_total)}"
             + (f"  procs={pcount}" if args.mode == "proc" else "")
         )
         sys.stdout.flush()
