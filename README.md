@@ -54,8 +54,9 @@ Real-time CPU and memory monitor for the system or a process tree.
 Examples:
 
 ```bash
-# System-wide monitoring with CSV and PNG output
+# System-wide (by default) monitoring with CSV and PNG output
 psutil-monitor --mode system --csv node.csv --plot node.png
+psutil-monitor 
 
 # Monitor the current process tree (useful inside a PBS job)
 psutil-monitor --mode proc --pid $$ --include-children --csv job.csv
