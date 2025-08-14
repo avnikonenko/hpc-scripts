@@ -128,6 +128,7 @@ def main():
         "proc_count",
         "provided_cpus",
         "provided_mem_bytes",
+        "provided_mem_gb",
     ]
     f = open(args.csv, "w", newline="")
     w = csv.DictWriter(f, fieldnames=fields)
@@ -231,6 +232,7 @@ def main():
             "proc_count": pcount if args.mode == "proc" else "",
             "provided_cpus": provided_cpus,
             "provided_mem_bytes": provided_mem,
+            "provided_mem_gb": f"{provided_mem / (1024**3):.3f}",
         })
         f.flush()
 
