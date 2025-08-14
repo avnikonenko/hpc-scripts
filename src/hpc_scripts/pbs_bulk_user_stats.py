@@ -125,26 +125,26 @@ def summarize_job_from_block(block: str) -> Dict[str, Any]:
     if ncpus is None and RE_SELECT.search(block):
         ncpus = parse_total_ncpus_from_select(RE_SELECT.search(block).group(1))
 
-    used_mem_b  = parse_size_to_bytes(RE_MEMU.search(block).group(1))  if RE_MEMU.search(block)  else None
-    used_vmem_b = parse_size_to_bytes(RE_VMEMU.search(block).group(1)) if RE_VMEMU.search(block) else None
+    used_mem_bytes  = parse_size_to_bytes(RE_MEMU.search(block).group(1))  if RE_MEMU.search(block)  else None
+    used_vmem_bytes = parse_size_to_bytes(RE_VMEMU.search(block).group(1)) if RE_VMEMU.search(block) else None
 
-    req_mem_b = parse_size_to_bytes(RE_MEMREQ.search(block).group(1)) if RE_MEMREQ.search(block) else None
-    if req_mem_b is None and RE_SELECT.search(block):
-        req_mem_b = parse_total_mem_from_select(RE_SELECT.search(block).group(1))
+    requested_mem_bytes = parse_size_to_bytes(RE_MEMREQ.search(block).group(1)) if RE_MEMREQ.search(block) else None
+    if requested_mem_bytes is None and RE_SELECT.search(block):
+        requested_mem_bytes = parse_total_mem_from_select(RE_SELECT.search(block).group(1))
 
-    req_vmem_b = parse_size_to_bytes(RE_VMEMRQ.search(block).group(1)) if RE_VMEMRQ.search(block) else None
+    requested_vmem_bytes = parse_size_to_bytes(RE_VMEMRQ.search(block).group(1)) if RE_VMEMRQ.search(block) else None
 
     avg_used_cpus = (cput_s / wall_s) if (cput_s is not None and wall_s and wall_s > 0) else None
     cpu_eff = (avg_used_cpus / ncpus) if (avg_used_cpus is not None and ncpus) else None
-    mem_eff = (used_mem_b / req_mem_b) if (used_mem_b and req_mem_b and req_mem_b > 0) else None
-    vmem_eff = (used_vmem_b / req_vmem_b) if (used_vmem_b and req_vmem_b and req_vmem_b > 0) else None
+    mem_efficiency = (used_mem_bytes / requested_mem_bytes) if (used_mem_bytes and requested_mem_bytes and requested_mem_bytes > 0) else None
+    vmem_efficiency = (used_vmem_bytes / requested_vmem_bytes) if (used_vmem_bytes and requested_vmem_bytes and requested_vmem_bytes > 0) else None
 
     return {
         "jobid": jobid, "name": name, "state": state, "nodes": nodes,
         "ncpus": ncpus, "wall_s": wall_s, "cput_s": cput_s,
         "avg_used_cpus": avg_used_cpus, "cpu_eff": cpu_eff,
-        "used_mem_b": used_mem_b, "req_mem_b": req_mem_b, "mem_eff": mem_eff,
-        "used_vmem_b": used_vmem_b, "req_vmem_b": req_vmem_b, "vmem_eff": vmem_eff,
+        "used_mem_bytes": used_mem_bytes, "requested_mem_bytes": requested_mem_bytes, "mem_efficiency": mem_efficiency,
+        "used_vmem_bytes": used_vmem_bytes, "requested_vmem_bytes": requested_vmem_bytes, "vmem_efficiency": vmem_efficiency,
     }
 
 def summarize_job(jobid: str) -> Dict[str, Any]:
@@ -238,9 +238,9 @@ def render_table(rows: List[Dict[str,Any]], name_max: int) -> None:
             "CPUT(h)": secs_to_h(r["cput_s"]),
             "avgCPU": f"{r['avg_used_cpus']:.2f}" if r["avg_used_cpus"] is not None else "n/a",
             "CPUeff": pct_str(r["cpu_eff"]),
-            "memUsed": fmt_bytes(r["used_mem_b"]),
-            "memReq":  fmt_bytes(r["req_mem_b"]),
-            "memEff":  pct_str(r["mem_eff"]),
+            "memUsed": fmt_bytes(r["used_mem_bytes"]),
+            "memReq":  fmt_bytes(r["requested_mem_bytes"]),
+            "memEff":  pct_str(r["mem_efficiency"]),
         }
         for k,v in row.items():
             w[k] = max(w[k], len(str(v)))
@@ -255,8 +255,8 @@ def write_csv(rows: List[Dict[str,Any]], path: str) -> None:
     import csv
     fields = [
         "jobid","name","state","nodes","ncpus","wall_s","cput_s","avg_used_cpus","cpu_eff",
-        "used_mem_b","used_mem_gb","req_mem_b","req_mem_gb","mem_eff",
-        "used_vmem_b","used_vmem_gb","req_vmem_b","req_vmem_gb","vmem_eff",
+        "used_mem_bytes","used_mem_gb","requested_mem_bytes","requested_mem_gb","mem_efficiency",
+        "used_vmem_bytes","used_vmem_gb","requested_vmem_bytes","requested_vmem_gb","vmem_efficiency",
     ]
     f = sys.stdout if path == "-" else open(path, "w", newline="")
     with f:
@@ -273,26 +273,26 @@ def write_csv(rows: List[Dict[str,Any]], path: str) -> None:
                 "cput_s": r.get("cput_s"),
                 "avg_used_cpus": r.get("avg_used_cpus"),
                 "cpu_eff": r.get("cpu_eff"),
-                "used_mem_b": r.get("used_mem_b"),
-                "req_mem_b": r.get("req_mem_b"),
-                "mem_eff": r.get("mem_eff"),
-                "used_vmem_b": r.get("used_vmem_b"),
-                "req_vmem_b": r.get("req_vmem_b"),
-                "vmem_eff": r.get("vmem_eff"),
+                "used_mem_bytes": r.get("used_mem_bytes"),
+                "requested_mem_bytes": r.get("requested_mem_bytes"),
+                "mem_efficiency": r.get("mem_efficiency"),
+                "used_vmem_bytes": r.get("used_vmem_bytes"),
+                "requested_vmem_bytes": r.get("requested_vmem_bytes"),
+                "vmem_efficiency": r.get("vmem_efficiency"),
             }
 
             if row["avg_used_cpus"] is not None:
                 row["avg_used_cpus"] = round(row["avg_used_cpus"], 2)
 
-            for field in ["cpu_eff", "mem_eff", "vmem_eff"]:
+            for field in ["cpu_eff", "mem_efficiency", "vmem_efficiency"]:
                 if row.get(field) is not None:
                     row[field] = round(row[field], 2)
 
             for src, dest in [
-                ("used_mem_b", "used_mem_gb"),
-                ("req_mem_b", "req_mem_gb"),
-                ("used_vmem_b", "used_vmem_gb"),
-                ("req_vmem_b", "req_vmem_gb"),
+                ("used_mem_bytes", "used_mem_gb"),
+                ("requested_mem_bytes", "requested_mem_gb"),
+                ("used_vmem_bytes", "used_vmem_gb"),
+                ("requested_vmem_bytes", "requested_vmem_gb"),
             ]:
                 val = row.get(src)
                 row[dest] = round((val / (1024**3)), 2) if val is not None else None
@@ -304,11 +304,16 @@ def aggregate(rows: List[Dict[str,Any]]) -> Dict[str,float]:
     def mean(xs):
         xs = [x for x in xs if x is not None and not (isinstance(x,float) and (math.isnan(x) or math.isinf(x)))]
         return sum(xs)/len(xs) if xs else float("nan")
+    peak_used_mem_bytes = None
+    mem_vals = [r.get("used_mem_bytes") for r in rows if r.get("used_mem_bytes")]
+    if mem_vals:
+        peak_used_mem_bytes = max(mem_vals)
     return {
         "jobs": len(rows),
         "avg_CPUeff_%": mean([r["cpu_eff"]*100 for r in rows if r.get("cpu_eff") is not None]),
         "avg_avgCPU":   mean([r["avg_used_cpus"] for r in rows if r.get("avg_used_cpus") is not None]),
-        "avg_memEff_%": mean([r["mem_eff"]*100 for r in rows if r.get("mem_eff") is not None]),
+        "avg_memEff_%": mean([r["mem_efficiency"]*100 for r in rows if r.get("mem_efficiency") is not None]),
+        "peak_mem_used_bytes": peak_used_mem_bytes,
     }
 
 # ---------- CLI ----------
@@ -364,6 +369,8 @@ def main():
         print(f"  mean avgCPU: {agg['avg_avgCPU']:.2f}")
     if agg['avg_memEff_%'] == agg['avg_memEff_%']:
         print(f"  mean memEff: {agg['avg_memEff_%']:.2f}%")
+    if agg.get('peak_mem_used_bytes'):
+        print(f"  peak memory used: {fmt_bytes(agg['peak_mem_used_bytes'])}")
 
     if args.csv:
         write_csv(rows, args.csv)
