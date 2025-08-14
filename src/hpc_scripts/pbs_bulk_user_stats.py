@@ -319,12 +319,9 @@ def main():
     ap.add_argument("--job", help="Job ID to summarize (default: $PBS_JOBID)")
     ap.add_argument("--user", help="Summarize all jobs of USER")
     ap.add_argument("--include-finished", action="store_true", help="Include finished jobs (qstat -x)")
-    mode = ap.add_mutually_exclusive_group()
-    mode.add_argument("--mode", choices=["bulk","compat"], default="bulk",
+    ap.add_argument("--mode", choices=["bulk","compat"], default="bulk",
     help="Bulk mode: one qstat -f for all jobs; auto-fallback to compat if it fails.\n Compat mode: one qstat -fx per job (slower but widely compatible)"
     )
-#    mode.add_argument("--fast", action="store_true", help="Bulk mode: one qstat -f for all jobs; auto-fallback to compat if it fails")
-#    mode.add_argument("--compat", action="store_true", help="Compat mode: one qstat -fx per job (slower but widely compatible)")
     ap.add_argument("--csv", metavar="PATH", help='Write CSV to PATH (use "-" for stdout)')
     ap.add_argument("--name-max", type=int, default=30, help="Max width for job name column; 0=disable truncation (default: 30)")
     args = ap.parse_args()
