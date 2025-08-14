@@ -253,14 +253,47 @@ def render_table(rows: List[Dict[str,Any]], name_max: int) -> None:
 
 def write_csv(rows: List[Dict[str,Any]], path: str) -> None:
     import csv
-    fields = ["jobid","name","state","nodes","ncpus","wall_s","cput_s","avg_used_cpus","cpu_eff",
-              "used_mem_b","req_mem_b","mem_eff","used_vmem_b","req_vmem_b","vmem_eff"]
+    fields = [
+        "jobid","name","state","nodes","ncpus","wall_s","cput_s","avg_used_cpus","cpu_eff",
+        "used_mem_b","used_mem_gb","req_mem_b","req_mem_gb","mem_eff",
+        "used_vmem_b","used_vmem_gb","req_vmem_b","req_vmem_gb","vmem_eff",
+    ]
     f = sys.stdout if path == "-" else open(path, "w", newline="")
     with f:
         w = csv.DictWriter(f, fieldnames=fields)
         w.writeheader()
         for r in rows:
-            w.writerow({k: r.get(k) for k in fields})
+            row = {
+                "jobid": r.get("jobid"),
+                "name": r.get("name"),
+                "state": r.get("state"),
+                "nodes": r.get("nodes"),
+                "ncpus": r.get("ncpus"),
+                "wall_s": r.get("wall_s"),
+                "cput_s": r.get("cput_s"),
+                "avg_used_cpus": r.get("avg_used_cpus"),
+                "cpu_eff": r.get("cpu_eff"),
+                "used_mem_b": r.get("used_mem_b"),
+                "req_mem_b": r.get("req_mem_b"),
+                "mem_eff": r.get("mem_eff"),
+                "used_vmem_b": r.get("used_vmem_b"),
+                "req_vmem_b": r.get("req_vmem_b"),
+                "vmem_eff": r.get("vmem_eff"),
+            }
+
+            if row["avg_used_cpus"] is not None:
+                row["avg_used_cpus"] = round(row["avg_used_cpus"], 2)
+
+            for src, dest in [
+                ("used_mem_b", "used_mem_gb"),
+                ("req_mem_b", "req_mem_gb"),
+                ("used_vmem_b", "used_vmem_gb"),
+                ("req_vmem_b", "req_vmem_gb"),
+            ]:
+                val = row.get(src)
+                row[dest] = (val / (1024**3)) if val is not None else None
+
+            w.writerow({k: row.get(k) for k in fields})
 
 def aggregate(rows: List[Dict[str,Any]]) -> Dict[str,float]:
     import math
