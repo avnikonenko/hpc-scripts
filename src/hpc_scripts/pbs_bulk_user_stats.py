@@ -22,6 +22,7 @@ RE_OWNER   = re.compile(r"^\s*Job_Owner\s*=\s*([^@]+)@", re.M)
 RE_STATE   = re.compile(r"^\s*job_state\s*=\s*(\S+)", re.M)
 RE_NAME    = re.compile(r"^\s*Job_Name\s*=\s*(\S+)", re.M)
 RE_JOBID   = re.compile(r"^\s*Job Id:\s*(\S+)", re.M)
+RE_EXECHOST = re.compile(r"^\s*exec_host\s*=\s*(\S.*(?:\n\s+\S.*)*)", re.M)
 
 # ---------- Utilities ----------
 def hms_to_seconds(hms: str) -> int:
@@ -105,6 +106,17 @@ def summarize_job_from_block(block: str) -> Dict[str, Any]:
     name  = (RE_NAME.search(block).group(1) if RE_NAME.search(block) else "")
     state = (RE_STATE.search(block).group(1) if RE_STATE.search(block) else "?")
 
+    nodes = None
+    m_exec = RE_EXECHOST.search(block)
+    if m_exec:
+        hosts_raw = re.sub(r"\s+", "", m_exec.group(1))
+        host_list: List[str] = []
+        for chunk in hosts_raw.split("+"):
+            host = chunk.split("/")[0]
+            if host and host not in host_list:
+                host_list.append(host)
+        nodes = ",".join(host_list) if host_list else None
+
     cput_s = hms_to_seconds(RE_CPUT.search(block).group(1)) if RE_CPUT.search(block) else None
     wall_s = hms_to_seconds(RE_WALL.search(block).group(1)) if RE_WALL.search(block) else None
 
@@ -128,7 +140,7 @@ def summarize_job_from_block(block: str) -> Dict[str, Any]:
     vmem_eff = (used_vmem_b / req_vmem_b) if (used_vmem_b and req_vmem_b and req_vmem_b > 0) else None
 
     return {
-        "jobid": jobid, "name": name, "state": state,
+        "jobid": jobid, "name": name, "state": state, "nodes": nodes,
         "ncpus": ncpus, "wall_s": wall_s, "cput_s": cput_s,
         "avg_used_cpus": avg_used_cpus, "cpu_eff": cpu_eff,
         "used_mem_b": used_mem_b, "req_mem_b": req_mem_b, "mem_eff": mem_eff,
@@ -209,7 +221,7 @@ def summarize_all_jobs_compat(user: str, include_finished: bool) -> List[Dict[st
 
 # ---------- Output ----------
 def render_table(rows: List[Dict[str,Any]], name_max: int) -> None:
-    cols = ["JOBID","STATE","NAME","NCPUS","WALL(h)","CPUT(h)","avgCPU","CPUeff","memUsed","memReq","memEff"]
+    cols = ["JOBID","STATE","NAME","NODES","NCPUS","WALL(h)","CPUT(h)","avgCPU","CPUeff","memUsed","memReq","memEff"]
     w = {c: len(c) for c in cols}
     table = []
     for r in rows:
@@ -220,6 +232,7 @@ def render_table(rows: List[Dict[str,Any]], name_max: int) -> None:
             "JOBID":  r["jobid"],
             "STATE":  r["state"],
             "NAME":   name,
+            "NODES":  r.get("nodes") or "n/a",
             "NCPUS":  str(r["ncpus"] if r["ncpus"] is not None else "n/a"),
             "WALL(h)": secs_to_h(r["wall_s"]),
             "CPUT(h)": secs_to_h(r["cput_s"]),
@@ -240,7 +253,7 @@ def render_table(rows: List[Dict[str,Any]], name_max: int) -> None:
 
 def write_csv(rows: List[Dict[str,Any]], path: str) -> None:
     import csv
-    fields = ["jobid","name","state","ncpus","wall_s","cput_s","avg_used_cpus","cpu_eff",
+    fields = ["jobid","name","state","nodes","ncpus","wall_s","cput_s","avg_used_cpus","cpu_eff",
               "used_mem_b","req_mem_b","mem_eff","used_vmem_b","req_vmem_b","vmem_eff"]
     f = sys.stdout if path == "-" else open(path, "w", newline="")
     with f:
