@@ -1,0 +1,65 @@
+# Output Columns for pbs-bulk-monitor and psutil-monitor
+
+This document describes the meaning of each column produced by the monitoring scripts in both their terminal output and CSV exports.
+
+## pbs-bulk-monitor
+
+### Terminal columns
+- **JOBID**: PBS job identifier.
+- **STATE**: Current job state (e.g. `R` for running, `Q` for queued).
+- **NAME**: Job name as supplied to PBS.
+- **NODES**: Comma-separated list of execution hosts if known.
+- **NCPUS**: Number of CPU cores requested for the job.
+- **WALL(h)**: Elapsed wallclock time in hours.
+- **CPUT(h)**: Total CPU time summed over all cores in hours.
+- **avgCPU**: Average number of cores actively used (`CPUT / WALL`).
+- **CPUeff**: CPU efficiency, ratio of `avgCPU` to `NCPUS`.
+- **memUsed**: Peak resident memory used by the job.
+- **memReq**: Memory requested at submission.
+- **memEff**: Memory efficiency, `memUsed / memReq`.
+
+### CSV columns
+- **jobid**: PBS job identifier.
+- **name**: Job name.
+- **state**: Job state.
+- **nodes**: Execution hosts.
+- **ncpus**: Requested CPU cores.
+- **wall_s**: Wallclock runtime in seconds.
+- **cput_s**: Total CPU time in seconds.
+- **avg_used_cpus**: Average busy cores over the job (`cput_s / wall_s`).
+- **cpu_eff**: CPU efficiency ratio (`avg_used_cpus / ncpus`, 0–1).
+- **used_mem_b**: Memory used in bytes.
+- **used_mem_gb**: Memory used in gigabytes.
+- **req_mem_b**: Memory requested in bytes.
+- **req_mem_gb**: Memory requested in gigabytes.
+- **mem_eff**: Memory efficiency (`used_mem_b / req_mem_b`).
+- **used_vmem_b**: Virtual memory used in bytes.
+- **used_vmem_gb**: Virtual memory used in gigabytes.
+- **req_vmem_b**: Requested virtual memory in bytes.
+- **req_vmem_gb**: Requested virtual memory in gigabytes.
+- **vmem_eff**: Virtual memory efficiency (`used_vmem_b / req_vmem_b`).
+
+## psutil-monitor
+
+### Terminal columns
+- **Timestamp**: ISO timestamp of the sample.
+- **CPU %**: CPU usage percentage relative to the chosen CPU basis.
+- **busyCPUs**: Number of CPU cores effectively busy during the interval.
+- **provided**: CPU basis used for percentages (typically available cores).
+- **MEM %**: Memory usage percentage relative to the chosen memory basis.
+- **used**: Bytes of memory currently used, rendered in human-readable form.
+- **total**: Total memory corresponding to the basis.
+- **procs**: (proc mode only) number of processes included in the measurement.
+
+### CSV columns
+- **ts**: Sample timestamp (ISO format).
+- **mode**: Monitoring mode (`system` or `proc`).
+- **cpu_percent**: CPU usage percentage.
+- **busy_cpus**: Busy core equivalents over the sample.
+- **mem_percent**: Memory usage percentage.
+- **mem_used_bytes**: Memory used in bytes.
+- **mem_used_gb**: Memory used in gigabytes.
+- **proc_count**: Process count (blank in `system` mode).
+- **provided_cpus**: CPU basis for percentages.
+- **provided_mem_bytes**: Memory basis in bytes.
+- **provided_mem_gb**: Memory basis in gigabytes.
