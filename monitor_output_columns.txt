@@ -6,7 +6,7 @@ This document describes the meaning of each column produced by the monitoring sc
 
 ### Terminal columns
 - **JOBID**: PBS job identifier.
-- **STATE**: Current job state (e.g. `R` for running, `Q` for queued).
+- **STATE**: Current job state (e.g. `R` for running, `Q` for queued, `F` for finished).
 - **NAME**: Job name as supplied to PBS.
 - **NODES**: Comma-separated list of execution hosts if known.
 - **NCPUS**: Number of CPU cores requested for the job.
