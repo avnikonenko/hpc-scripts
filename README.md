@@ -47,6 +47,16 @@ pbs-bulk-user-stats --job 12345 --csv stats.csv
 pbs-bulk-user-stats --user myuser --include-finished
 ```
 
+**Expected output:**
+```
+$ pbs-bulk-user-stats --user myuser
+
+JOBID    STATE   NAME       NODES    NCPUS  WALL(h)  CPUT(h)  avgCPU  CPUeff  memUsed   memReq   memEff
+-------------------------------------------------------------------------------------------------------
+0001      R      run1		pbs-1    176    38.55    3632.12  163.6  93.53%  207.4 GiB 256.00 GiB 81.10%
+0002      R      run2		pbs-2    176    38.59    3589.72  93.13  52.91%  50.02 GiB 256.00 GiB 19.54%
+```
+
 ### `psutil-monitor`
 
 Real-time CPU and memory monitor for the system or a process tree.
@@ -55,11 +65,36 @@ Examples:
 
 ```bash
 # System-wide (by default) monitoring with CSV and PNG output
+psutil-monitor
 psutil-monitor --mode system --csv node.csv --plot node.png
-psutil-monitor 
 
 # Monitor the current process tree (useful inside a PBS job)
 psutil-monitor --mode proc --pid $$ --include-children --csv job.csv
+
+# For script.py resources monitoring:
+python script.py &                   # launch the workload
+target=$!                            # PID of script.py
+echo $target
+# psutil-monitor watches that PID and exits when the process tree is gone
+psutil-monitor --mode proc --pid "$target" --include-children --csv stat.csv --plot plot.png
+
+```
+**Expected output:**
+```
+$ psutil-monitor
+
+CPUs available (affinity): 384
+Total memory available: 754.76 GiB
+CPU basis for %: 384
+Memory basis for %: 754.76 GiB
+2025-08-14T15:20:14  CPU  79.67%  busyCPUs 305.93  (provided 384)  MEM   9.93%  used 74.96 GiB / total 754.76 GiB
+2025-08-14T15:20:16  CPU  69.30%  busyCPUs 266.13  (provided 384)  MEM   9.95%  used 75.12 GiB / total 754.76 GiB
+2025-08-14T15:20:18  CPU  61.34%  busyCPUs 235.53  (provided 384)  MEM  10.05%  used 75.82 GiB / total 754.76 GiB
+2025-08-14T15:20:20  CPU  61.32%  busyCPUs 235.47  (provided 384)  MEM  10.09%  used 76.15 GiB / total 754.76 GiB
+2025-08-14T15:20:22  CPU  74.57%  busyCPUs 286.33  (provided 384)  MEM   9.94%  used 74.99 GiB / total 754.76 GiB
+2025-08-14T15:20:24  CPU  85.94%  busyCPUs 330.01  (provided 384)  MEM   9.86%  used 74.44 GiB / total 754.76 GiB
+Average busy CPUs over run: 276.570
+
 ```
 
 Use the `--help` option of each command to see all available options.
