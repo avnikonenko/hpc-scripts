@@ -284,7 +284,7 @@ def write_csv(rows: List[Dict[str,Any]], path: str) -> None:
             if row["avg_used_cpus"] is not None:
                 row["avg_used_cpus"] = round(row["avg_used_cpus"], 2)
 
-            for field in ["cpu_eff", "mem_eff", "vmem_eff"]:
+            for field in ["cpu_eff", "mem_eff", "vmem_eff", "used_mem_gb", "used_vmem_gb"]:
                 if row.get(field) is not None:
                     row[field] = round(row[field], 2)
 
