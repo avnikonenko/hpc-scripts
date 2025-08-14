@@ -2,7 +2,7 @@
 
 This document describes the meaning of each column produced by the monitoring scripts in both their terminal output and CSV exports.
 
-## pbs-bulk-monitor
+## pbs-bulk-monitor (based on qsub -f output)
 
 ### Terminal columns
 - **JOBID**: PBS job identifier.
