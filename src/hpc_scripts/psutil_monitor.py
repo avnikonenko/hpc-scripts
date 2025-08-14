@@ -196,7 +196,7 @@ def main():
             busy_cpus = sum(allowed) / 100.0  # average busy cores over the interval
             cpu_pct = (100.0 * busy_cpus / ncpu_basis) if ncpu_basis else 0.0
             vm = psutil.virtual_memory()
-            mem_used = int(vm.used)
+            mem_used = int(vm.total-vm.available)
             mem_pct = (100.0 * mem_used / mem_basis) if mem_basis else 0.0
             mem_peak = max(mem_peak, mem_used)
             pcount = 0
