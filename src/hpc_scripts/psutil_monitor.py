@@ -5,7 +5,7 @@ psutil_monitor.py — real-time CPU & Memory monitor
 Features
 - Mode "system": overall node CPU% and RAM usage
 - Mode "proc": aggregate CPU% and RSS of a PID + all children (multiprocessing-friendly)
-- Prints live metrics, writes CSV, optional PNG plot at the end
+- Prints live metrics, optional CSV and PNG plot at the end
 - Reports **busy CPU equivalents** per sample (e.g., 6.4 means ~6.4 cores busy)
 - Prints **overall average busy CPUs** at the end
 - Uses CPU affinity (os.sched_getaffinity) as the default CPU basis (overridable by PBS_NP or --ncpu-basis)
@@ -89,14 +89,16 @@ def proc_tree_cpu_mem(pid: int, prev_cpu: Dict[int,float]) -> tuple[float, int, 
 
 # ---------- CLI ----------
 def main():
-    ap = argparse.ArgumentParser(description="Real-time CPU & memory monitor (system or process-tree) with CSV + optional plot.")
+    ap = argparse.ArgumentParser(
+        description="Real-time CPU & memory monitor (system or process-tree) with CSV + optional plot."
+    )
     ap.add_argument("--mode", choices=["system","proc"], default="system", help="What to monitor")
     ap.add_argument("--pid", type=int, help="Root PID for --mode proc (defaults to current process)")
     ap.add_argument("--include-children", action="store_true", help="Sum over children recursively (recommended for multiprocessing)")
     ap.add_argument("--interval", type=float, default=2.0, help="Sampling interval in seconds (default: 2)")
     ap.add_argument("--duration", type=float, default=0.0, help="Stop after N seconds (0 = run until Ctrl+C)")
-    ap.add_argument("--csv", default="monitor.csv", help="CSV output path (default: monitor.csv)")
-    ap.add_argument("--plot", default="", help="PNG output path (optional; requires matplotlib)")
+    ap.add_argument("--csv", default=None, help="CSV output path (if omitted, CSV is not written)")
+    ap.add_argument("--plot", default=None, help="PNG output path (optional; requires matplotlib)")
     ap.add_argument("--ncpu-basis", type=int, default=0, help="CPU basis for %% calculations (defaults: PBS_NP or logical CPU count)")
     ap.add_argument("--mem-basis", type=float, default=0.0, help="Memory basis for %% calculations (defaults: total memory) in GB")
     args = ap.parse_args()
@@ -118,7 +120,7 @@ def main():
     print(f"CPU basis for %: {ncpu_basis}")
     print(f"Memory basis for %: {bytes_human(mem_basis)}")
 
-    # Prepare CSV (add busy_cpus column)
+    # Prepare CSV (add busy_cpus column) if requested
     fields = [
         "ts",
         "mode",
@@ -132,9 +134,13 @@ def main():
         "provided_mem_bytes",
         "provided_mem_gb",
     ]
-    f = open(args.csv, "w", newline="")
-    w = csv.DictWriter(f, fieldnames=fields, delimiter="\t")
-    w.writeheader(); f.flush()
+    f = None
+    w: Optional[csv.DictWriter] = None
+    if args.csv:
+        f = open(args.csv, "w", newline="")
+        w = csv.DictWriter(f, fieldnames=fields, delimiter="\t")
+        w.writeheader()
+        f.flush()
 
     # State for graceful shutdown + proc tracking
     stop = False
@@ -145,7 +151,7 @@ def main():
     signal.signal(signal.SIGTERM, _sigint)
 
     prev_cpu: Dict[int,float] = {}
-    rss_peak = 0
+    mem_peak = 0
     t0 = time.time()
 
     # Running average of busy CPUs
@@ -192,6 +198,7 @@ def main():
             vm = psutil.virtual_memory()
             mem_used = int(vm.used)
             mem_pct = (100.0 * mem_used / mem_basis) if mem_basis else 0.0
+            mem_peak = max(mem_peak, mem_used)
             pcount = 0
         else:
             # proc mode: measure delta CPU seconds over interval
@@ -206,7 +213,7 @@ def main():
             # Memory: process RSS sum; percent vs basis
             mem_used = int(rss_sum)
             mem_pct = (100.0 * rss_sum / mem_basis) if mem_basis else 0.0
-            rss_peak = max(rss_peak, rss_sum)
+            mem_peak = max(mem_peak, rss_sum)
 
         # Update running average
         samples += 1
@@ -223,20 +230,21 @@ def main():
         sys.stdout.flush()
 
         # Log to CSV
-        w.writerow({
-            "ts": now_iso(),
-            "mode": args.mode,
-            "cpu_percent": f"{cpu_pct:.2f}",
-            "busy_cpus": f"{busy_cpus:.3f}",
-            "mem_percent": f"{mem_pct:.2f}",
-            "mem_used_bytes": mem_used,
-            "mem_used_gb": f"{mem_used / (1024**3):.3f}",
-            "proc_count": pcount if args.mode == "proc" else "",
-            "provided_cpus": provided_cpus,
-            "provided_mem_bytes": provided_mem,
-            "provided_mem_gb": f"{provided_mem / (1024**3):.3f}",
-        })
-        f.flush()
+        if w:
+            w.writerow({
+                "ts": now_iso(),
+                "mode": args.mode,
+                "cpu_percent": f"{cpu_pct:.2f}",
+                "busy_cpus": f"{busy_cpus:.3f}",
+                "mem_percent": f"{mem_pct:.2f}",
+                "mem_used_bytes": mem_used,
+                "mem_used_gb": f"{mem_used / (1024**3):.3f}",
+                "proc_count": pcount if args.mode == "proc" else "",
+                "provided_cpus": provided_cpus,
+                "provided_mem_bytes": provided_mem,
+                "provided_mem_gb": f"{provided_mem / (1024**3):.3f}",
+            })
+            f.flush()
 
         # Save for plotting
         times.append(time.time())
@@ -254,7 +262,8 @@ def main():
             if elapsed < args.interval:
                 time.sleep(max(0.0, args.interval - elapsed))
 
-    f.close()
+    if f:
+        f.close()
 
     # Optional plot
     if args.plot:
@@ -291,14 +300,19 @@ def main():
             else:
                 print("Not enough samples to plot.")
         except Exception as e:
-            print(f"Plotting failed: {e}. CSV is still saved at {args.csv}", file=sys.stderr)
+            msg = f"Plotting failed: {e}."
+            if args.csv:
+                msg += f" CSV is still saved at {args.csv}"
+            print(msg, file=sys.stderr)
 
     # Final notes
     if samples > 0:
         avg_busy = busy_sum / samples
         print(f"Average busy CPUs over run: {avg_busy:.3f}")
-    if args.mode == "proc" and rss_peak:
-        print(f"Peak RSS (proc tree): {bytes_human(rss_peak)}")
+    if args.mode == "proc" and mem_peak:
+        print(f"Peak RSS (proc tree): {bytes_human(mem_peak)}")
+    if args.mode == "system" and mem_peak:
+        print(f"Peak memory (system): {bytes_human(mem_peak)}")
 
 if __name__ == "__main__":
     main()

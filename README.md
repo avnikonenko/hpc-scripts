@@ -64,6 +64,10 @@ Summary:
 
 ```
 
+After the table, a summary reports the job count, mean CPU efficiency,
+mean average CPU usage, mean memory efficiency, and the peak memory used
+across all listed jobs.
+
 ### `psutil-monitor`
 
 Real-time CPU and memory monitor for the system or a process tree.
@@ -71,8 +75,10 @@ Real-time CPU and memory monitor for the system or a process tree.
 Examples:
 
 ```bash
-# System-wide (by default) monitoring with CSV and PNG output
+# System-wide (by default) monitoring with console output only
 psutil-monitor
+
+# System-wide monitoring with CSV and PNG output
 psutil-monitor --mode system --csv node.csv --plot node.png
 
 # Monitor the current process tree (useful inside a PBS job)

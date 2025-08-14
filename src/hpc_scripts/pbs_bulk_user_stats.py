@@ -304,11 +304,16 @@ def aggregate(rows: List[Dict[str,Any]]) -> Dict[str,float]:
     def mean(xs):
         xs = [x for x in xs if x is not None and not (isinstance(x,float) and (math.isnan(x) or math.isinf(x)))]
         return sum(xs)/len(xs) if xs else float("nan")
+    peak_mem = None
+    mem_vals = [r.get("used_mem_b") for r in rows if r.get("used_mem_b")]
+    if mem_vals:
+        peak_mem = max(mem_vals)
     return {
         "jobs": len(rows),
         "avg_CPUeff_%": mean([r["cpu_eff"]*100 for r in rows if r.get("cpu_eff") is not None]),
         "avg_avgCPU":   mean([r["avg_used_cpus"] for r in rows if r.get("avg_used_cpus") is not None]),
         "avg_memEff_%": mean([r["mem_eff"]*100 for r in rows if r.get("mem_eff") is not None]),
+        "max_mem_b": peak_mem,
     }
 
 # ---------- CLI ----------
@@ -364,6 +369,8 @@ def main():
         print(f"  mean avgCPU: {agg['avg_avgCPU']:.2f}")
     if agg['avg_memEff_%'] == agg['avg_memEff_%']:
         print(f"  mean memEff: {agg['avg_memEff_%']:.2f}%")
+    if agg.get('max_mem_b'):
+        print(f"  max memUsed: {fmt_bytes(agg['max_mem_b'])}")
 
     if args.csv:
         write_csv(rows, args.csv)
