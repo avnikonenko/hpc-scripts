@@ -36,8 +36,8 @@ feature of `psutil-monitor`.
 
 Summarize CPU and memory usage for PBS jobs and show which nodes the jobs are
 allocated to. The command relies on `qstat` being available in your `PATH`.
-CSV output rounds the `avg_used_cpus` column and includes memory fields in both
-bytes and gigabytes.
+CSV output rounds `avg_used_cpus` and all efficiency columns, and includes
+memory fields in both bytes and gigabytes.
 
 Examples:
 
