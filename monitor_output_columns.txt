@@ -14,7 +14,7 @@ This document describes the meaning of each column produced by the monitoring sc
 - **CPUT(h)**: Total CPU time summed over all cores in hours.
 - **avgCPU**: Average number of cores actively used (`CPUT / WALL`).
 - **CPUeff**: CPU efficiency, ratio of `avgCPU` to `NCPUS`.
-- **memUsed**: Peak resident memory used by the job.
+- **memUsed**: Peak resident memory used by the job (Can be not accurate, because PBS samples periodically, this peak can miss short spikes).
 - **memReq**: Memory requested at submission.
 - **memEff**: Memory efficiency, `memUsed / memReq`.
 
