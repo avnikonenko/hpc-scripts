@@ -313,7 +313,7 @@ def aggregate(rows: List[Dict[str,Any]]) -> Dict[str,float]:
         "avg_CPUeff_%": mean([r["cpu_eff"]*100 for r in rows if r.get("cpu_eff") is not None]),
         "avg_avgCPU":   mean([r["avg_used_cpus"] for r in rows if r.get("avg_used_cpus") is not None]),
         "avg_memEff_%": mean([r["mem_eff"]*100 for r in rows if r.get("mem_eff") is not None]),
-        "peak_mem_b": peak_mem,
+        "max_mem_b": peak_mem,
     }
 
 # ---------- CLI ----------
@@ -369,8 +369,8 @@ def main():
         print(f"  mean avgCPU: {agg['avg_avgCPU']:.2f}")
     if agg['avg_memEff_%'] == agg['avg_memEff_%']:
         print(f"  mean memEff: {agg['avg_memEff_%']:.2f}%")
-    if agg.get('peak_mem_b'):
-        print(f"  peak memUsed: {fmt_bytes(agg['peak_mem_b'])}")
+    if agg.get('max_mem_b'):
+        print(f"  max memUsed: {fmt_bytes(agg['max_mem_b'])}")
 
     if args.csv:
         write_csv(rows, args.csv)
