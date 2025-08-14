@@ -10,7 +10,7 @@ Features
 - Prints **overall average busy CPUs** at the end
 - Uses CPU affinity (os.sched_getaffinity) as the default CPU basis (overridable by PBS_NP or --ncpu-basis)
 - Prints the detected CPU set and total available memory at startup
- - Uses total memory as the default memory basis (overridable by --mem-basis)
+ - Uses total memory as the default memory basis (overridable by --mem-basis in GB)
 
 Examples
   # System-wide monitoring, 2s interval, save CSV + PNG
@@ -98,7 +98,7 @@ def main():
     ap.add_argument("--csv", default="monitor.csv", help="CSV output path (default: monitor.csv)")
     ap.add_argument("--plot", default="", help="PNG output path (optional; requires matplotlib)")
     ap.add_argument("--ncpu-basis", type=int, default=0, help="CPU basis for proc %% (defaults: PBS_NP or logical CPU count)")
-    ap.add_argument("--mem-basis", type=int, default=0, help="Memory basis for proc %% (defaults: total memory)")
+    ap.add_argument("--mem-basis", type=float, default=0.0, help="Memory basis for proc %% (defaults: total memory) in GB")
     args = ap.parse_args()
 
     # Resolve CPU affinity / bases
@@ -113,7 +113,7 @@ def main():
     # Print detected resources
     print(f"CPUs available (affinity): {ncpu_affinity}")
     vm_total = psutil.virtual_memory().total
-    mem_basis = args.mem_basis or vm_total
+    mem_basis = int(args.mem_basis * (1024**3)) if args.mem_basis else vm_total
     print(f"Total memory available: {bytes_human(vm_total)}")
 
     # Prepare CSV (add busy_cpus column)
