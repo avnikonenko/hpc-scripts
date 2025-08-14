@@ -55,6 +55,13 @@ JOBID    STATE   NAME       NODES    NCPUS  WALL(h)  CPUT(h)  avgCPU  CPUeff  me
 -------------------------------------------------------------------------------------------------------
 0001      R      run1		pbs-1    176    38.55    3632.12  163.6  93.53%  207.4 GiB 256.00 GiB 81.10%
 0002      R      run2		pbs-2    176    38.59    3589.72  93.13  52.91%  50.02 GiB 256.00 GiB 19.54%
+...
+Summary:
+  jobs:        5
+  mean CPUeff: 75.20%
+  mean avgCPU: 132.35
+  mean memEff: 82.50%
+
 ```
 
 ### `psutil-monitor`
