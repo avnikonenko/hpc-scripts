@@ -133,7 +133,7 @@ def main():
         "provided_mem_gb",
     ]
     f = open(args.csv, "w", newline="")
-    w = csv.DictWriter(f, fieldnames=fields)
+    w = csv.DictWriter(f, fieldnames=fields, delimiter="\t")
     w.writeheader(); f.flush()
 
     # State for graceful shutdown + proc tracking
