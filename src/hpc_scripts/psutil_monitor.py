@@ -10,6 +10,7 @@ Features
 - Prints **overall average busy CPUs** at the end
 - Uses CPU affinity (os.sched_getaffinity) as the default CPU basis (overridable by PBS_NP or --ncpu-basis)
 - Prints the detected CPU set and total available memory at startup
+ - Uses total memory as the default memory basis (overridable by --mem-basis)
 
 Examples
   # System-wide monitoring, 2s interval, save CSV + PNG
@@ -96,7 +97,8 @@ def main():
     ap.add_argument("--duration", type=float, default=0.0, help="Stop after N seconds (0 = run until Ctrl+C)")
     ap.add_argument("--csv", default="monitor.csv", help="CSV output path (default: monitor.csv)")
     ap.add_argument("--plot", default="", help="PNG output path (optional; requires matplotlib)")
-    ap.add_argument("--ncpu-basis", type=int, default=0, help="CPU basis for proc % (defaults: PBS_NP or logical CPU count)")
+    ap.add_argument("--ncpu-basis", type=int, default=0, help="CPU basis for proc %% (defaults: PBS_NP or logical CPU count)")
+    ap.add_argument("--mem-basis", type=int, default=0, help="Memory basis for proc %% (defaults: total memory)")
     args = ap.parse_args()
 
     # Resolve CPU affinity / bases
@@ -111,10 +113,22 @@ def main():
     # Print detected resources
     print(f"CPUs available (affinity): {ncpu_affinity}")
     vm_total = psutil.virtual_memory().total
+    mem_basis = args.mem_basis or vm_total
     print(f"Total memory available: {bytes_human(vm_total)}")
 
     # Prepare CSV (add busy_cpus column)
-    fields = ["ts","mode","cpu_percent","busy_cpus","mem_percent","mem_used_bytes","proc_count"]
+    fields = [
+        "ts",
+        "mode",
+        "cpu_percent",
+        "busy_cpus",
+        "mem_percent",
+        "mem_used_bytes",
+        "mem_used_gb",
+        "proc_count",
+        "provided_cpus",
+        "provided_mem_bytes",
+    ]
     f = open(args.csv, "w", newline="")
     w = csv.DictWriter(f, fieldnames=fields)
     w.writeheader(); f.flush()
@@ -147,7 +161,7 @@ def main():
         try:
             root = psutil.Process(target_pid)
             plist = [root]
-            if args.include-children:
+            if args.include_children:
                 plist += root.children(recursive=True)
             for p in plist:
                 try:
@@ -186,10 +200,9 @@ def main():
             # Convert delta CPU seconds to busy core-equivalents and percent
             busy_cpus = (delta_cpu / args.interval) if args.interval > 0 else 0.0
             cpu_pct = (100.0 * busy_cpus / ncpu_proc_basis) if ncpu_proc_basis > 0 else 0.0
-            # Memory: process RSS sum; percent vs node total
-            vm = psutil.virtual_memory()
+            # Memory: process RSS sum; percent vs basis
             mem_used = int(rss_sum)
-            mem_pct = (100.0 * rss_sum / vm.total) if vm.total else 0.0
+            mem_pct = (100.0 * rss_sum / mem_basis) if mem_basis else 0.0
             rss_peak = max(rss_peak, rss_sum)
 
         # Update running average
@@ -197,10 +210,11 @@ def main():
         busy_sum += busy_cpus
 
         # Print line in canonical format
-        provided = ncpu_system if args.mode == "system" else ncpu_proc_basis
+        provided_cpus = ncpu_system if args.mode == "system" else ncpu_proc_basis
+        provided_mem = vm_total if args.mode == "system" else mem_basis
         print(
-            f"{now_iso()}  CPU {cpu_pct:6.2f}%  busyCPUs {busy_cpus:6.2f}  (provided {provided})  "
-            f"MEM {mem_pct:6.2f}%  used {bytes_human(mem_used)} / total {bytes_human(vm_total)}"
+            f"{now_iso()}  CPU {cpu_pct:6.2f}%  busyCPUs {busy_cpus:6.2f}  (provided {provided_cpus})  "
+            f"MEM {mem_pct:6.2f}%  used {bytes_human(mem_used)} / total {bytes_human(provided_mem)}"
             + (f"  procs={pcount}" if args.mode == "proc" else "")
         )
         sys.stdout.flush()
@@ -213,7 +227,10 @@ def main():
             "busy_cpus": f"{busy_cpus:.3f}",
             "mem_percent": f"{mem_pct:.2f}",
             "mem_used_bytes": mem_used,
+            "mem_used_gb": f"{mem_used / (1024**3):.3f}",
             "proc_count": pcount if args.mode == "proc" else "",
+            "provided_cpus": provided_cpus,
+            "provided_mem_bytes": provided_mem,
         })
         f.flush()
 
@@ -258,6 +275,9 @@ def main():
                 ax2.plot(tmins, mem_series, linewidth=1.0, linestyle=":", label="Mem %")
                 ax2.set_ylabel("Memory %")
                 ax2.set_ylim(0, max(100.0, max(mem_series) if mem_series else 100.0))
+                lines1, labels1 = ax.get_legend_handles_labels()
+                lines2, labels2 = ax2.get_legend_handles_labels()
+                ax.legend(lines1 + lines2, labels1 + labels2, loc="upper right")
                 plt.title(f"{args.mode} monitor ({ncpu_proc_basis} CPUs basis in proc mode)")
                 plt.tight_layout()
                 plt.savefig(args.plot, dpi=150)
