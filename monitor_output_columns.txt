@@ -47,7 +47,7 @@ This document describes the meaning of each column produced by the monitoring sc
 - **busyCPUs**: Number of CPU cores effectively busy during the interval.
 - **provided**: CPU basis used for percentages (typically available cores).
 - **MEM %**: Memory usage percentage relative to the chosen memory basis.
-- **used**: Bytes of memory currently used, rendered in human-readable form.
+- **used**: Bytes of memory currently used, rendered in human-readable form. (Total-Available)
 - **total**: Total memory corresponding to the basis.
 - **procs**: (proc mode only) number of processes included in the measurement.
 
@@ -57,8 +57,8 @@ This document describes the meaning of each column produced by the monitoring sc
 - **cpu_percent**: CPU usage percentage.
 - **busy_cpus**: Busy core equivalents over the sample.
 - **mem_percent**: Memory usage percentage.
-- **mem_used_bytes**: Memory used in bytes.
-- **mem_used_gb**: Memory used in gigabytes.
+- **mem_used_bytes**: Memory used (Total-Available) in bytes.
+- **mem_used_gb**: Memory used (Total-available) in gigabytes.
 - **proc_count**: Process count (blank in `system` mode).
 - **provided_cpus**: CPU basis for percentages.
 - **provided_mem_bytes**: Memory basis in bytes.
