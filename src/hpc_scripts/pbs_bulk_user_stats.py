@@ -260,7 +260,7 @@ def write_csv(rows: List[Dict[str,Any]], path: str) -> None:
     ]
     f = sys.stdout if path == "-" else open(path, "w", newline="")
     with f:
-        w = csv.DictWriter(f, fieldnames=fields)
+        w = csv.DictWriter(f, fieldnames=fields, delimiter="\t")
         w.writeheader()
         for r in rows:
             row = {
