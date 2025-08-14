@@ -61,6 +61,8 @@ Summary:
   mean CPUeff: 75.20%
   mean avgCPU: 132.35
   mean memEff: 82.50%
+  max memUsed: 230.16 GiB
+
 
 ```
 
@@ -107,6 +109,7 @@ Memory basis for %: 754.76 GiB
 2025-08-14T15:20:22  CPU  74.57%  busyCPUs 286.33  (provided 384)  MEM   9.94%  used 74.99 GiB / total 754.76 GiB
 2025-08-14T15:20:24  CPU  85.94%  busyCPUs 330.01  (provided 384)  MEM   9.86%  used 74.44 GiB / total 754.76 GiB
 Average busy CPUs over run: 276.570
+Peak memory (system): 76.15 GiB
 
 ```
 
