@@ -57,6 +57,10 @@ JOBID    STATE   NAME       NODES    NCPUS  WALL(h)  CPUT(h)  avgCPU  CPUeff  me
 0002      R      run2		pbs-2    176    38.59    3589.72  93.13  52.91%  50.02 GiB 256.00 GiB 19.54%
 ```
 
+After the table, a summary reports the job count, mean CPU efficiency,
+mean average CPU usage, mean memory efficiency, and the peak memory used
+across all listed jobs.
+
 ### `psutil-monitor`
 
 Real-time CPU and memory monitor for the system or a process tree.
@@ -64,8 +68,10 @@ Real-time CPU and memory monitor for the system or a process tree.
 Examples:
 
 ```bash
-# System-wide (by default) monitoring with CSV and PNG output
+# System-wide (by default) monitoring with console output only
 psutil-monitor
+
+# System-wide monitoring with CSV and PNG output
 psutil-monitor --mode system --csv node.csv --plot node.png
 
 # Monitor the current process tree (useful inside a PBS job)
