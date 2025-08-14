@@ -282,7 +282,9 @@ def main():
                 lines1, labels1 = ax.get_legend_handles_labels()
                 lines2, labels2 = ax2.get_legend_handles_labels()
                 ax.legend(lines1 + lines2, labels1 + labels2, loc="upper right")
-                plt.title(f"{args.mode} monitor ({ncpu_basis} CPUs basis)")
+                plt.title(
+                    f"{args.mode} monitor ({ncpu_basis} CPUs, {bytes_human(mem_basis)} memory basis)"
+                )
                 plt.tight_layout()
                 plt.savefig(args.plot, dpi=150)
                 print(f"Saved plot: {args.plot}")
