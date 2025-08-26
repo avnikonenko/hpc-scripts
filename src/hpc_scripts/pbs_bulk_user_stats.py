@@ -322,8 +322,8 @@ def main():
     ap = argparse.ArgumentParser(
         description="PBS job CPU & Memory statistics (single job or all jobs for a user)."
     )
-    ap.add_argument("--job", help="Job ID to summarize (default: $PBS_JOBID)")
-    ap.add_argument("--user", help="Summarize all jobs of USER (default: current user)")
+    ap.add_argument("--job", help="Job ID to summarize (default: $PBS_JOBID). Returns the current job statistics if valid $PBS JOBID is found and --user argument was not specified explicitly")
+    ap.add_argument("--user", help="Summarize all jobs of USER (default: current user). The --user argument takes precedence over the --job value")
     ap.add_argument("--include-finished", action="store_true", help="Include finished jobs (qstat -x)")
     ap.add_argument("--mode", choices=["bulk","compat"], default="bulk",
     help="Bulk mode: one qstat -f for all jobs; auto-fallback to compat if it fails.\n Compat mode: one qstat -fx per job (slower but widely compatible)"
