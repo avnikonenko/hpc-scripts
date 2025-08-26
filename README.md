@@ -41,15 +41,26 @@ Examples:
 
 ```bash
 # Summarize a specific job and write CSV output
-pbs-bulk-user-stats --job 12345 --csv stats.csv 
+pbs-bulk-user-stats --job 12345 --csv stats.csv
 
-# Summarize all jobs for a user
+# Summarize all jobs for the current user (default) 
+pbs-bulk-user-stats --include-finished
+
+# Summarize all jobs for a specific user
 pbs-bulk-user-stats --user myuser --include-finished
+```
+
+When invoked with no `--user` or `--job` options:
+- On a login node (no `$PBS_JOBID` present), it summarizes all jobs for the current user.
+- Inside a running PBS job (where `$PBS_JOBID` is set), it automatically summarizes that specific job.
+
+```
+pbs-bulk-user-stats
 ```
 
 **Expected output:**
 ```
-$ pbs-bulk-user-stats --user myuser
+$ pbs-bulk-user-stats
 
 JOBID    STATE   NAME       NODES    NCPUS  WALL(h)  CPUT(h)  avgCPU  CPUeff  memUsed   memReq   memEff
 -------------------------------------------------------------------------------------------------------
@@ -63,6 +74,19 @@ Summary:
   mean memEff: 82.50%
   max memUsed: 230.16 GiB
 
+```
+or if run inside a running PBS:
+```
+JOBID  STATE  NAME   NODES  NCPUS  WALL(h)  CPUT(h)  avgCPU  CPUeff  memUsed     memReq     memEff
+-----------------------------------------------------------------------------------------------------
+0001   R      STDIN  pbs-5  100    0.03     0.01     0.22    0.22%   666.58 MiB  30.00 GiB  2.17% 
+
+Summary:
+  jobs:        1
+  mean CPUeff: 0.22%
+  mean avgCPU: 0.22
+  mean memEff: 2.17%
+  max memUsed: 666.58 MiB
 
 ```
 
