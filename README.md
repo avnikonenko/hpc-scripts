@@ -41,15 +41,18 @@ Examples:
 
 ```bash
 # Summarize a specific job and write CSV output
-pbs-bulk-user-stats --job 12345 --csv stats.csv 
+pbs-bulk-user-stats --job 12345 --csv stats.csv
 
-# Summarize all jobs for a user
+# Summarize all jobs for the current user (default)
+pbs-bulk-user-stats --include-finished
+
+# Summarize all jobs for a specific user
 pbs-bulk-user-stats --user myuser --include-finished
 ```
 
 **Expected output:**
 ```
-$ pbs-bulk-user-stats --user myuser
+$ pbs-bulk-user-stats
 
 JOBID    STATE   NAME       NODES    NCPUS  WALL(h)  CPUT(h)  avgCPU  CPUeff  memUsed   memReq   memEff
 -------------------------------------------------------------------------------------------------------

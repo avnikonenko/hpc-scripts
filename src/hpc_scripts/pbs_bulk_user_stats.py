@@ -2,6 +2,7 @@
 """Summarize PBS job CPU and memory usage for a user or single job."""
 
 import argparse
+import getpass
 import os
 import re
 import shutil
@@ -322,7 +323,7 @@ def main():
         description="PBS job CPU & Memory statistics (single job or all jobs for a user)."
     )
     ap.add_argument("--job", help="Job ID to summarize (default: $PBS_JOBID)")
-    ap.add_argument("--user", help="Summarize all jobs of USER")
+    ap.add_argument("--user", help="Summarize all jobs of USER (default: current user)")
     ap.add_argument("--include-finished", action="store_true", help="Include finished jobs (qstat -x)")
     ap.add_argument("--mode", choices=["bulk","compat"], default="bulk",
     help="Bulk mode: one qstat -f for all jobs; auto-fallback to compat if it fails.\n Compat mode: one qstat -fx per job (slower but widely compatible)"
@@ -337,26 +338,29 @@ def main():
 
     rows: List[Dict[str,Any]] = []
 
+    jobid = args.job or os.environ.get("PBS_JOBID")
+    default_user = os.environ.get("PBS_O_LOGNAME") or os.environ.get("USER") or getpass.getuser()
+
     # single-job path
-    if not args.user:
-        jobid = args.job or os.environ.get("PBS_JOBID")
-        if not jobid:
-            print("Provide --job JOBID or run inside PBS with $PBS_JOBID set, or use --user USER.", file=sys.stderr)
-            sys.exit(2)
+    if args.user is None and jobid:
         rows.append(summarize_job(jobid))
     else:
         # multi-job path
+        user = args.user or default_user
+        if not user:
+            print("Provide --job JOBID or run inside PBS with $PBS_JOBID set, or use --user USER.", file=sys.stderr)
+            sys.exit(2)
         used_fast = False
         if args.mode == "bulk":
             try:
-                rows = summarize_all_jobs_bulk(args.user, include_finished=args.include_finished)
+                rows = summarize_all_jobs_bulk(user, include_finished=args.include_finished)
                 used_fast = True
             except subprocess.CalledProcessError:
                 rows = []
             except Exception:
                 rows = []
         if not rows and args.mode == "compat":
-            rows = summarize_all_jobs_compat(args.user, include_finished=args.include_finished)
+            rows = summarize_all_jobs_compat(user, include_finished=args.include_finished)
 
     # output
     render_table(rows, name_max=args.name_max)
