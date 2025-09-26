@@ -152,6 +152,7 @@ def main():
 
     prev_cpu: Dict[int,float] = {}
     mem_peak = 0
+    busy_peak = 0.0
     t0 = time.time()
 
     # Running average of busy CPUs
@@ -215,10 +216,11 @@ def main():
             mem_pct = (100.0 * rss_sum / mem_basis) if mem_basis else 0.0
             mem_peak = max(mem_peak, rss_sum)
 
-        # Update running average
+        # Update running average and peaks
         samples += 1
         busy_sum += busy_cpus
-
+        busy_peak = max(busy_peak, busy_cpus)
+        
         # Print line in canonical format
         provided_cpus = ncpu_basis
         provided_mem = mem_basis
@@ -309,6 +311,7 @@ def main():
     if samples > 0:
         avg_busy = busy_sum / samples
         print(f"Average busy CPUs over run: {avg_busy:.3f}")
+        print(f"Peak busy CPUs: {busy_peak:.3f}")
     if args.mode == "proc" and mem_peak:
         print(f"Peak RSS (proc tree): {bytes_human(mem_peak)}")
     if args.mode == "system" and mem_peak:
