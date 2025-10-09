@@ -300,7 +300,7 @@ def write_csv(rows: List[Dict[str,Any]], path: str) -> None:
 
             w.writerow({k: row.get(k) for k in fields})
 
-def aggregate(rows: List[Dict[str,Any]]) -> Dict[str,float]:
+def aggregate(rows: List[Dict[str,Any]]) -> Dict[str, Any]:
     import math
     def mean(xs):
         xs = [x for x in xs if x is not None and not (isinstance(x,float) and (math.isnan(x) or math.isinf(x)))]
@@ -309,12 +309,22 @@ def aggregate(rows: List[Dict[str,Any]]) -> Dict[str,float]:
     mem_vals = [r.get("used_mem_b") for r in rows if r.get("used_mem_b")]
     if mem_vals:
         peak_mem = max(mem_vals)
+    unique_nodes: set[str] = set()
+    for r in rows:
+        nodes_field = r.get("nodes")
+        if not nodes_field:
+            continue
+        for node in nodes_field.split(","):
+            node = node.strip()
+            if node:
+                unique_nodes.add(node)
     return {
         "jobs": len(rows),
         "avg_CPUeff_%": mean([r["cpu_eff"]*100 for r in rows if r.get("cpu_eff") is not None]),
         "avg_avgCPU":   mean([r["avg_used_cpus"] for r in rows if r.get("avg_used_cpus") is not None]),
         "avg_memEff_%": mean([r["mem_eff"]*100 for r in rows if r.get("mem_eff") is not None]),
         "max_mem_b": peak_mem,
+        "unique_nodes": len(unique_nodes),
     }
 
 # ---------- CLI ----------
@@ -367,6 +377,7 @@ def main():
     agg = aggregate(rows)
     print("\nSummary:")
     print(f"  jobs:        {agg['jobs']}")
+    print(f"  unique nodes: {agg['unique_nodes']}")
     if agg['avg_CPUeff_%'] == agg['avg_CPUeff_%']:
         print(f"  mean CPUeff: {agg['avg_CPUeff_%']:.2f}%")
     if agg['avg_avgCPU'] == agg['avg_avgCPU']:
