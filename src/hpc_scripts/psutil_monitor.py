@@ -405,61 +405,57 @@ def main():
             if len(times) >= 2:
                 t0 = times[0]
                 tmins = [(t - t0)/60.0 for t in times]  # minutes
-                fig = plt.figure(figsize=(9,3.5))
-                ax = plt.gca()
-                ax.plot(tmins, cpu_series, linewidth=1.2, label="CPU %")
-                ax.set_xlabel("Time (min)")
-                ax.set_ylabel("CPU %")
-                ax.set_ylim(0, max(100.0, max(cpu_series) if cpu_series else 100.0))
-                ax.grid(True, linestyle="--", alpha=0.4)
-                # Add memory on twin axis
-                ax2 = ax.twinx()
-                ax2.plot(tmins, mem_series, linewidth=1.0, linestyle=":", label="Mem %")
-                ax2.set_ylabel("Memory %")
-                ax2.set_ylim(0, max(100.0, max(mem_series) if mem_series else 100.0))
-                lines1, labels1 = ax.get_legend_handles_labels()
-                lines2, labels2 = ax2.get_legend_handles_labels()
-                ax.legend(lines1 + lines2, labels1 + labels2, loc="upper right")
-                plt.title(
+                have_gpu = gpu_enabled and bool(gpu_util_series)
+                if have_gpu:
+                    fig, (ax_cpu, ax_gpu) = plt.subplots(2, 1, figsize=(9,6), sharex=True)
+                else:
+                    fig, ax_cpu = plt.subplots(1, 1, figsize=(9,3.5))
+
+                # --- CPU subplot ---
+                ax_cpu.plot(tmins, cpu_series, linewidth=1.2, label="CPU %")
+                ax_cpu.set_ylabel("CPU %")
+                ax_cpu.set_ylim(0, max(100.0, max(cpu_series) if cpu_series else 100.0))
+                ax_cpu.grid(True, linestyle="--", alpha=0.4)
+                ax_cpu2 = ax_cpu.twinx()
+                ax_cpu2.plot(tmins, mem_series, linewidth=1.0, linestyle=":", label="Mem %")
+                ax_cpu2.set_ylabel("Memory %")
+                ax_cpu2.set_ylim(0, max(100.0, max(mem_series) if mem_series else 100.0))
+                lines1, labels1 = ax_cpu.get_legend_handles_labels()
+                lines2, labels2 = ax_cpu2.get_legend_handles_labels()
+                ax_cpu.legend(lines1 + lines2, labels1 + labels2, loc="upper right")
+                ax_cpu.set_title(
                     f"{args.mode} monitor ({ncpu_basis} CPUs, {bytes_human(mem_basis)} memory basis)"
                 )
+                if not have_gpu:
+                    ax_cpu.set_xlabel("Time (min)")
+
+                # --- GPU subplot (optional) ---
+                if have_gpu:
+                    ax_gpu.plot(tmins, gpu_util_series, linewidth=1.2, label="GPU util %")
+                    ax_gpu.set_ylabel("GPU util %")
+                    ax_gpu.set_ylim(0, max(100.0, max(gpu_util_series) if gpu_util_series else 100.0))
+                    ax_gpu.grid(True, linestyle="--", alpha=0.4)
+                    ax_gpu2 = ax_gpu.twinx()
+                    ax_gpu2.plot(tmins, gpu_mem_series, linewidth=1.0, linestyle=":", label="GPU mem %")
+                    ax_gpu2.set_ylabel("GPU memory %")
+                    ax_gpu2.set_ylim(0, max(100.0, max(gpu_mem_series) if gpu_mem_series else 100.0))
+                    lines1g, labels1g = ax_gpu.get_legend_handles_labels()
+                    lines2g, labels2g = ax_gpu2.get_legend_handles_labels()
+                    ax_gpu.legend(lines1g + lines2g, labels1g + labels2g, loc="upper right")
+                    title_bits = []
+                    if last_gpu_count is not None:
+                        title_bits.append(f"{last_gpu_count} GPUs")
+                    if last_gpu_mem_total_gb is not None and last_gpu_mem_total_gb > 0:
+                        title_bits.append(f"{last_gpu_mem_total_gb:.1f} GiB total")
+                    suffix = f"; {', '.join(title_bits)}" if title_bits else ""
+                    ax_gpu.set_title(f"GPU monitor (NVML{suffix})")
+                    ax_gpu.set_xlabel("Time (min)")
+
                 plt.tight_layout()
                 plt.savefig(args.plot, dpi=150)
                 print(f"Saved plot: {args.plot}")
             else:
                 print("Not enough samples to plot.")
-
-            # GPU plot (separate file with _gpu suffix)
-            if gpu_enabled and gpu_util_series and args.plot:
-                gpu_plot_path = args.plot
-                base, ext = os.path.splitext(gpu_plot_path)
-                if not ext:
-                    ext = ".png"
-                gpu_plot_path = f"{base}_gpu{ext}"
-                fig2 = plt.figure(figsize=(9,3.5))
-                axg = plt.gca()
-                axg.plot(tmins, gpu_util_series, linewidth=1.2, label="GPU util %")
-                axg.set_xlabel("Time (min)")
-                axg.set_ylabel("GPU util %")
-                axg.set_ylim(0, max(100.0, max(gpu_util_series) if gpu_util_series else 100.0))
-                axg.grid(True, linestyle="--", alpha=0.4)
-                axg2 = axg.twinx()
-                axg2.plot(tmins, gpu_mem_series, linewidth=1.0, linestyle=":", label="GPU mem %")
-                axg2.set_ylabel("GPU memory %")
-                axg2.set_ylim(0, max(100.0, max(gpu_mem_series) if gpu_mem_series else 100.0))
-                lines1, labels1 = axg.get_legend_handles_labels()
-                lines2, labels2 = axg2.get_legend_handles_labels()
-                axg.legend(lines1 + lines2, labels1 + labels2, loc="upper right")
-                title_bits = []
-                if last_gpu_count is not None:
-                    title_bits.append(f"{last_gpu_count} GPUs")
-                if last_gpu_mem_total_gb is not None and last_gpu_mem_total_gb > 0:
-                    title_bits.append(f"{last_gpu_mem_total_gb:.1f} GiB total")
-                suffix = f"; {', '.join(title_bits)}" if title_bits else ""
-                axg.set_title(f"GPU monitor (NVML{suffix})")
-                plt.tight_layout()
-                plt.savefig(gpu_plot_path, dpi=150)
-                print(f"Saved GPU plot: {gpu_plot_path}")
         except Exception as e:
             msg = f"Plotting failed: {e}."
             if args.csv:
