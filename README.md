@@ -28,20 +28,15 @@ available in your environment.
 Clone the repository and install with pip:
 
 ```bash
-# Core only
-pip install .
-
-# Core + plotting support
-pip install .[plot]
-
-# Core + GPU support
-pip install .[gpu]
-
-# Everything (plot + GPU)
-pip install .[all]
+Install from PyPI (once published):
+```bash
+pip install hpc-stats-scripts
+pip install hpc-stats-scripts[plot]
+pip install hpc-stats-scripts[gpu]
+pip install hpc-stats-scripts[all]
 ```
 
-Install directly from GitHub:
+Install directly from GitHub (the current version):
 ```bash
 pip install "hpc-stats-scripts @ git+https://github.com/avnikonenko/hpc-stats-scripts.git"
 pip install "hpc-stats-scripts[plot] @ git+https://github.com/avnikonenko/hpc-stats-scripts.git"
