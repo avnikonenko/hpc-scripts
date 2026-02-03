@@ -85,7 +85,7 @@ pbs-bulk-user-stats
 State codes (PBS):
 - `R` running, `Q` queued/waiting, `X` finished (requires `--include-finished`), other codes are printed under “other” in the summary.
 
-**Expected output:**
+**Expected output (CPU/RAM only):**
 ```
 $ pbs-bulk-user-stats
 
@@ -128,6 +128,12 @@ across all listed jobs.
 Real-time CPU and memory monitor for the system or a process tree.
 Use `--gpu` to also report aggregate GPU utilization and memory via NVML (requires `nvidia-ml-py3`).
 
+GPU output fields (when `--gpu` is used):
+- **GPU util**: Average utilization across visible GPUs.
+- **busyGPUs**: Sum of utilization fractions (e.g., two GPUs at 50% each → 1.0).
+- **GPU mem %**: Aggregate GPU memory usage percentage.
+- **Per-GPU** (CSV `gpu_pergpu`): `index:util%/used/total` for each device.
+
 Examples:
 
 ```bash
@@ -164,6 +170,23 @@ Memory basis for %: 754.76 GiB
 2025-08-14T15:20:24  CPU  85.94%  busyCPUs 330.01  (provided 384)  MEM   9.86%  used 74.44 GiB / total 754.76 GiB
 Average busy CPUs over run: 276.570
 Peak memory (system): 76.15 GiB
+
+```
+With GPUs (`--gpu` and NVIDIA GPUs present):
+```
+$ psutil-monitor --gpu
+
+CPUs available (affinity): 96
+Total memory available: 503.70 GiB
+CPU basis for %: 96
+Memory basis for %: 503.70 GiB
+GPUs detected (NVML): 4
+2026-02-03T10:00:14  CPU  45.12%  busyCPUs 43.32  (provided 96)  MEM   8.10%  used 40.80 GiB / total 503.70 GiB  GPU util  57.5% busyGPUs 2.30 mem  42.0%
+2026-02-03T10:00:16  CPU  48.33%  busyCPUs 46.39  (provided 96)  MEM   8.20%  used 41.30 GiB / total 503.70 GiB  GPU util  63.0% busyGPUs 2.52 mem  44.1%
+2026-02-03T10:00:18  CPU  52.10%  busyCPUs 49.99  (provided 96)  MEM   8.25%  used 41.60 GiB / total 503.70 GiB  GPU util  68.7% busyGPUs 2.75 mem  45.3%
+Average busy CPUs over run: 46.567
+Average busy GPUs over run: 2.523
+Peak memory (system): 41.60 GiB
 
 ```
 

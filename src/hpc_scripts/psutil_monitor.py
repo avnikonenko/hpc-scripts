@@ -277,6 +277,8 @@ def main():
 
     # Buffers for optional plotting
     times, cpu_series, mem_series = [], [], []
+    gpu_util_series: list[float] = []
+    gpu_mem_series: list[float] = []
 
     # --- Main loop ---
     while not stop:
@@ -313,6 +315,9 @@ def main():
         if gpu_busy is not None:
             gpu_busy_sum += gpu_busy
             gpu_samples += 1
+        if gpu_metrics:
+            gpu_util_series.append(gpu_metrics.get("gpu_util_avg_pct", 0.0))
+            gpu_mem_series.append(gpu_metrics.get("gpu_mem_pct", 0.0))
 
         # Update running average and peaks
         samples += 1
@@ -417,6 +422,32 @@ def main():
                 print(f"Saved plot: {args.plot}")
             else:
                 print("Not enough samples to plot.")
+
+            # GPU plot (separate file with _gpu suffix)
+            if gpu_enabled and gpu_util_series and args.plot:
+                gpu_plot_path = args.plot
+                base, ext = os.path.splitext(gpu_plot_path)
+                if not ext:
+                    ext = ".png"
+                gpu_plot_path = f"{base}_gpu{ext}"
+                fig2 = plt.figure(figsize=(9,3.5))
+                axg = plt.gca()
+                axg.plot(tmins, gpu_util_series, linewidth=1.2, label="GPU util %")
+                axg.set_xlabel("Time (min)")
+                axg.set_ylabel("GPU util %")
+                axg.set_ylim(0, max(100.0, max(gpu_util_series) if gpu_util_series else 100.0))
+                axg.grid(True, linestyle="--", alpha=0.4)
+                axg2 = axg.twinx()
+                axg2.plot(tmins, gpu_mem_series, linewidth=1.0, linestyle=":", label="GPU mem %")
+                axg2.set_ylabel("GPU memory %")
+                axg2.set_ylim(0, max(100.0, max(gpu_mem_series) if gpu_mem_series else 100.0))
+                lines1, labels1 = axg.get_legend_handles_labels()
+                lines2, labels2 = axg2.get_legend_handles_labels()
+                axg.legend(lines1 + lines2, labels1 + labels2, loc="upper right")
+                plt.title("GPU monitor (NVML)")
+                plt.tight_layout()
+                plt.savefig(gpu_plot_path, dpi=150)
+                print(f"Saved GPU plot: {gpu_plot_path}")
         except Exception as e:
             msg = f"Plotting failed: {e}."
             if args.csv:
