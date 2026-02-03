@@ -10,6 +10,7 @@ This document describes the meaning of each column produced by the monitoring sc
 - **NAME**: Job name as supplied to the scheduler.
 - **NODES**: Comma-separated list of execution hosts if known.
 - **NCPUS**: Number of CPU cores requested for the job.
+- **NGPUS**: Number of GPUs requested for the job (if specified).
 - **WALL(h)**: Elapsed wallclock time in hours.
 - **CPUT(h)**: Total CPU time summed over all cores in hours.
 - **avgCPU**: Average number of cores actively used (`CPUT / WALL`).
@@ -24,6 +25,7 @@ This document describes the meaning of each column produced by the monitoring sc
 - **state**: Job state.
 - **nodes**: Execution hosts.
 - **ncpus**: Requested CPU cores.
+- **ngpus**: Requested GPUs (if reported by the scheduler).
 - **wall_s**: Wallclock runtime in seconds.
 - **cput_s**: Total CPU time in seconds.
 - **avg_used_cpus**: Average busy cores over the job (`cput_s / wall_s`).
@@ -50,6 +52,9 @@ This document describes the meaning of each column produced by the monitoring sc
 - **used**: Bytes of memory currently used, rendered in human-readable form. (Total-Available)
 - **total**: Total memory corresponding to the basis.
 - **procs**: (proc mode only) number of processes included in the measurement.
+- **GPU util**: Average GPU utilization across visible devices (requires `--gpu` and NVML).
+- **busyGPUs**: Sum of GPU utilization ratios (e.g., two GPUs at 50% each → 1.0 busy GPUs).
+- **GPU mem %**: Aggregate GPU memory usage percentage.
 
 ### CSV columns
 - **ts**: Sample timestamp (ISO format).
@@ -63,3 +68,9 @@ This document describes the meaning of each column produced by the monitoring sc
 - **provided_cpus**: CPU basis for percentages.
 - **provided_mem_bytes**: Memory basis in bytes.
 - **provided_mem_gb**: Memory basis in gigabytes.
+- **gpu_busy**: Busy GPU equivalents (sum of utilization fractions) (present when `--gpu` is used).
+- **gpu_util_avg_pct**: Mean utilization across visible GPUs.
+- **gpu_mem_percent**: Aggregate GPU memory usage percentage.
+- **gpu_mem_used_bytes**: Aggregate GPU memory used.
+- **gpu_mem_total_bytes**: Aggregate GPU memory total.
+- **gpu_pergpu**: Per-GPU breakdown `index:util%/used/total`.

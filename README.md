@@ -14,6 +14,7 @@ Install the required Python packages with pip:
 | ------- | -------- | ---------------- |
 | Core utilities | psutil | `pip install psutil` |
 | Plotting for `psutil-monitor` | matplotlib, numpy | `pip install matplotlib numpy` |
+| GPU monitoring for `psutil-monitor --gpu` | nvidia-ml-py3 (pynvml) | `pip install nvidia-ml-py3` |
 
 The `pbs-bulk-user-stats` command also expects the PBS `qstat` utility to be
 available in your environment.
@@ -46,6 +47,7 @@ feature of `psutil-monitor`.
 
 Summarize CPU and memory usage for PBS jobs and show which nodes the jobs are
 allocated to. The command relies on `qstat` being available in your `PATH`.
+The table now includes `NGPUS` (requested GPUs) when present.
 
 Examples:
 
@@ -112,6 +114,7 @@ across all listed jobs.
 ### `psutil-monitor`
 
 Real-time CPU and memory monitor for the system or a process tree.
+Use `--gpu` to also report aggregate GPU utilization and memory via NVML (requires `nvidia-ml-py3`).
 
 Examples:
 
@@ -158,6 +161,7 @@ Use the `--help` option of each command to see all available options.
 
 Summarize CPU and memory usage for Slurm jobs and show which nodes the jobs are
 allocated to. The command relies on `sacct` being available in your `PATH`.
+The table includes `NGPUS` based on AllocTres/AllocGRES when present.
 
 State codes (Slurm):
 - `R`/`RUNNING`, `PD`/`PENDING`, `CD`/`COMPLETED`; other states (e.g., `F`, `CG`, `S`, `TO`) are grouped under “other” in the summary and listed in the breakdown.

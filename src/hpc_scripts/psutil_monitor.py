@@ -33,6 +33,12 @@ from typing import Dict, Optional
 
 import psutil
 
+# Optional GPU support via NVML (nvidia-ml-py / pynvml)
+try:  # pragma: no cover - optional dependency
+    import pynvml  # type: ignore
+except Exception:  # pragma: no cover
+    pynvml = None
+
 # ---------- Helpers ----------
 def bytes_human(n: int) -> str:
     if n is None:
@@ -87,6 +93,72 @@ def proc_tree_cpu_mem(pid: int, prev_cpu: Dict[int,float]) -> tuple[float, int, 
 
     return (cpu_delta, rss_sum, count, new_prev, (root.pid if alive_root else 0))
 
+# ---------- GPU helpers ----------
+def init_nvml_or_die(enable_gpu: bool) -> bool:
+    if not enable_gpu:
+        return False
+    if pynvml is None:
+        print("ERROR: --gpu requested but pynvml (nvidia-ml-py) is not installed.", file=sys.stderr)
+        sys.exit(1)
+    try:
+        pynvml.nvmlInit()
+        return True
+    except Exception as e:  # pragma: no cover - hardware dependent
+        print(f"ERROR: NVML init failed: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def shutdown_nvml(initialized: bool) -> None:
+    if initialized and pynvml:
+        try:
+            pynvml.nvmlShutdown()
+        except Exception:
+            pass
+
+
+def collect_gpu_metrics() -> Dict[str, Optional[float]]:
+    """Return aggregate GPU metrics; empty dict if no devices or error."""
+    if not pynvml:
+        return {}
+    try:
+        count = pynvml.nvmlDeviceGetCount()
+    except Exception:
+        return {}
+    if count == 0:
+        return {}
+    util_sum = 0.0
+    util_seen = 0
+    busy_gpus = 0.0
+    total_mem_used = 0
+    total_mem = 0
+    per_gpu: list[str] = []
+    for i in range(count):
+        try:
+            h = pynvml.nvmlDeviceGetHandleByIndex(i)
+            util = pynvml.nvmlDeviceGetUtilizationRates(h).gpu  # percent
+            mem = pynvml.nvmlDeviceGetMemoryInfo(h)
+            util_sum += util
+            util_seen += 1
+            busy_gpus += util / 100.0
+            total_mem_used += mem.used
+            total_mem += mem.total
+            per_gpu.append(f"{i}:{util:.0f}%/{bytes_human(mem.used)}/{bytes_human(mem.total)}")
+        except Exception:
+            continue
+    if util_seen == 0:
+        return {}
+    mem_pct = (100.0 * total_mem_used / total_mem) if total_mem else 0.0
+    avg_util = util_sum / util_seen
+    return {
+        "gpu_count": util_seen,
+        "gpu_busy": busy_gpus,
+        "gpu_util_avg_pct": avg_util,
+        "gpu_mem_used": total_mem_used,
+        "gpu_mem_total": total_mem,
+        "gpu_mem_pct": mem_pct,
+        "gpu_pergpu": ";".join(per_gpu),
+    }
+
 # ---------- CLI ----------
 def main():
     ap = argparse.ArgumentParser(
@@ -101,6 +173,7 @@ def main():
     ap.add_argument("--plot", default=None, help="PNG output path (optional; requires matplotlib)")
     ap.add_argument("--ncpu-basis", type=int, default=0, help="CPU basis for %% calculations (defaults: PBS_NP or logical CPU count)")
     ap.add_argument("--mem-basis", type=float, default=0.0, help="Memory basis for %% calculations (defaults: total memory) in GB")
+    ap.add_argument("--gpu", action="store_true", help="Also report GPU utilization/memory using NVML (requires nvidia-ml-py/pynvml)")
     args = ap.parse_args()
 
     # Resolve CPU affinity and bases
@@ -120,6 +193,14 @@ def main():
     print(f"CPU basis for %: {ncpu_basis}")
     print(f"Memory basis for %: {bytes_human(mem_basis)}")
 
+    gpu_enabled = init_nvml_or_die(args.gpu)
+    if gpu_enabled:
+        try:
+            gcount = pynvml.nvmlDeviceGetCount()
+            print(f"GPUs detected (NVML): {gcount}")
+        except Exception:
+            print("GPUs detected (NVML): unavailable", file=sys.stderr)
+
     # Prepare CSV (add busy_cpus column) if requested
     fields = [
         "ts",
@@ -134,6 +215,15 @@ def main():
         "provided_mem_bytes",
         "provided_mem_gb",
     ]
+    if gpu_enabled:
+        fields += [
+            "gpu_busy",
+            "gpu_util_avg_pct",
+            "gpu_mem_percent",
+            "gpu_mem_used_bytes",
+            "gpu_mem_total_bytes",
+            "gpu_pergpu",
+        ]
     f = None
     w: Optional[csv.DictWriter] = None
     if args.csv:
@@ -158,6 +248,8 @@ def main():
     # Running average of busy CPUs
     samples = 0
     busy_sum = 0.0
+    gpu_busy_sum = 0.0
+    gpu_samples = 0
 
     # Warm-up for system CPU so first value isn’t a dummy
     if args.mode == "system":
@@ -216,6 +308,12 @@ def main():
             mem_pct = (100.0 * rss_sum / mem_basis) if mem_basis else 0.0
             mem_peak = max(mem_peak, rss_sum)
 
+        gpu_metrics = collect_gpu_metrics() if gpu_enabled else {}
+        gpu_busy = gpu_metrics.get("gpu_busy") if gpu_metrics else None
+        if gpu_busy is not None:
+            gpu_busy_sum += gpu_busy
+            gpu_samples += 1
+
         # Update running average and peaks
         samples += 1
         busy_sum += busy_cpus
@@ -224,11 +322,19 @@ def main():
         # Print line in canonical format
         provided_cpus = ncpu_basis
         provided_mem = mem_basis
-        print(
+        line = (
             f"{now_iso()}  CPU {cpu_pct:6.2f}%  busyCPUs {busy_cpus:6.2f}  (provided {provided_cpus})  "
             f"MEM {mem_pct:6.2f}%  used {bytes_human(mem_used)} / total {bytes_human(provided_mem)}"
-            + (f"  procs={pcount}" if args.mode == "proc" else "")
         )
+        if gpu_metrics:
+            line += (
+                f"  GPU util {gpu_metrics.get('gpu_util_avg_pct', 0.0):5.1f}%"
+                f" busyGPUs {gpu_metrics.get('gpu_busy', 0.0):4.2f}"
+                f" mem {gpu_metrics.get('gpu_mem_pct', 0.0):5.1f}%"
+            )
+        if args.mode == "proc":
+            line += f"  procs={pcount}"
+        print(line)
         sys.stdout.flush()
 
         # Log to CSV
@@ -245,6 +351,14 @@ def main():
                 "provided_cpus": provided_cpus,
                 "provided_mem_bytes": provided_mem,
                 "provided_mem_gb": f"{provided_mem / (1024**3):.3f}",
+                **({
+                    "gpu_busy": f"{gpu_metrics.get('gpu_busy', 0.0):.3f}" if gpu_metrics else "",
+                    "gpu_util_avg_pct": f"{gpu_metrics.get('gpu_util_avg_pct', 0.0):.2f}" if gpu_metrics else "",
+                    "gpu_mem_percent": f"{gpu_metrics.get('gpu_mem_pct', 0.0):.2f}" if gpu_metrics else "",
+                    "gpu_mem_used_bytes": gpu_metrics.get("gpu_mem_used") if gpu_metrics else "",
+                    "gpu_mem_total_bytes": gpu_metrics.get("gpu_mem_total") if gpu_metrics else "",
+                    "gpu_pergpu": gpu_metrics.get("gpu_pergpu", "") if gpu_metrics else "",
+                } if gpu_enabled else {}),
             })
             f.flush()
 
@@ -266,6 +380,8 @@ def main():
 
     if f:
         f.close()
+
+    shutdown_nvml(gpu_enabled)
 
     # Optional plot
     if args.plot:
@@ -312,6 +428,9 @@ def main():
         avg_busy = busy_sum / samples
         print(f"Average busy CPUs over run: {avg_busy:.3f}")
         print(f"Peak busy CPUs: {busy_peak:.3f}")
+    if gpu_enabled and gpu_samples > 0:
+        avg_gpu_busy = gpu_busy_sum / gpu_samples
+        print(f"Average busy GPUs over run: {avg_gpu_busy:.3f}")
     if args.mode == "proc" and mem_peak:
         print(f"Peak RSS (proc tree): {bytes_human(mem_peak)}")
     if args.mode == "system" and mem_peak:

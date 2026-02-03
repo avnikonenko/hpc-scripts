@@ -16,6 +16,8 @@ RE_WALL    = re.compile(r"^\s*resources_used\.walltime\s*=\s*(\S+)", re.M)
 RE_MEMU    = re.compile(r"^\s*resources_used\.mem\s*=\s*(\S+)", re.M)
 RE_VMEMU   = re.compile(r"^\s*resources_used\.vmem\s*=\s*(\S+)", re.M)
 RE_NCPUS   = re.compile(r"^\s*Resource_List\.ncpus\s*=\s*(\d+)", re.M)
+RE_NGPUS   = re.compile(r"^\s*Resource_List\.ngpus\s*=\s*(\d+)", re.M)
+RE_NGPU    = re.compile(r"^\s*Resource_List\.ngpu\s*=\s*(\d+)", re.M)
 RE_MEMREQ  = re.compile(r"^\s*Resource_List\.mem\s*=\s*(\S+)", re.M)
 RE_VMEMRQ  = re.compile(r"^\s*Resource_List\.(?:vmem|pvmem)\s*=\s*(\S+)", re.M)
 RE_SELECT  = re.compile(r"^\s*Resource_List\.select\s*=\s*([^\s]+)", re.M)
@@ -101,6 +103,23 @@ def parse_total_mem_from_select(select_str: str) -> Optional[int]:
             total += count * mem_bytes
     return total if seen else None
 
+def parse_total_gpus_from_select(select_str: str) -> Optional[int]:
+    total, seen = 0, False
+    for chunk in select_str.split("+"):
+        fields = chunk.split(":")
+        count, idx = (int(fields[0]), 1) if fields and fields[0].isdigit() else (1, 0)
+        ngpu_val = None
+        for f in fields[idx:]:
+            if f.startswith("ngpus=") or f.startswith("ngpu=") or f.startswith("gpus="):
+                try:
+                    ngpu_val = int(f.split("=",1)[1])
+                    seen = True
+                except ValueError:
+                    pass
+        if ngpu_val:
+            total += count * ngpu_val
+    return total if seen else None
+
 # ---------- Single job summarization ----------
 def summarize_job_from_block(block: str) -> Dict[str, Any]:
     jobid = (RE_JOBID.search(block).group(1) if RE_JOBID.search(block) else "unknown")
@@ -126,6 +145,14 @@ def summarize_job_from_block(block: str) -> Dict[str, Any]:
     if ncpus is None and RE_SELECT.search(block):
         ncpus = parse_total_ncpus_from_select(RE_SELECT.search(block).group(1))
 
+    ngpus = None
+    if RE_NGPUS.search(block):
+        ngpus = int(RE_NGPUS.search(block).group(1))
+    elif RE_NGPU.search(block):
+        ngpus = int(RE_NGPU.search(block).group(1))
+    elif RE_SELECT.search(block):
+        ngpus = parse_total_gpus_from_select(RE_SELECT.search(block).group(1))
+
     used_mem_b  = parse_size_to_bytes(RE_MEMU.search(block).group(1))  if RE_MEMU.search(block)  else None
     used_vmem_b = parse_size_to_bytes(RE_VMEMU.search(block).group(1)) if RE_VMEMU.search(block) else None
 
@@ -143,6 +170,7 @@ def summarize_job_from_block(block: str) -> Dict[str, Any]:
     return {
         "jobid": jobid, "name": name, "state": state, "nodes": nodes,
         "ncpus": ncpus, "wall_s": wall_s, "cput_s": cput_s,
+        "ngpus": ngpus,
         "avg_used_cpus": avg_used_cpus, "cpu_eff": cpu_eff,
         "used_mem_b": used_mem_b, "req_mem_b": req_mem_b, "mem_eff": mem_eff,
         "used_vmem_b": used_vmem_b, "req_vmem_b": req_vmem_b, "vmem_eff": vmem_eff,
@@ -222,7 +250,7 @@ def summarize_all_jobs_compat(user: str, include_finished: bool) -> List[Dict[st
 
 # ---------- Output ----------
 def render_table(rows: List[Dict[str,Any]], name_max: int) -> None:
-    cols = ["JOBID","STATE","NAME","NODES","NCPUS","WALL(h)","CPUT(h)","avgCPU","CPUeff","memUsed","memReq","memEff"]
+    cols = ["JOBID","STATE","NAME","NODES","NCPUS","NGPUS","WALL(h)","CPUT(h)","avgCPU","CPUeff","memUsed","memReq","memEff"]
     w = {c: len(c) for c in cols}
     table = []
     for r in rows:
@@ -235,6 +263,7 @@ def render_table(rows: List[Dict[str,Any]], name_max: int) -> None:
             "NAME":   name,
             "NODES":  r.get("nodes") or "n/a",
             "NCPUS":  str(r["ncpus"] if r["ncpus"] is not None else "n/a"),
+            "NGPUS":  str(r["ngpus"] if r.get("ngpus") is not None else "n/a"),
             "WALL(h)": secs_to_h(r["wall_s"]),
             "CPUT(h)": secs_to_h(r["cput_s"]),
             "avgCPU": f"{r['avg_used_cpus']:.2f}" if r["avg_used_cpus"] is not None else "n/a",
@@ -255,7 +284,7 @@ def render_table(rows: List[Dict[str,Any]], name_max: int) -> None:
 def write_csv(rows: List[Dict[str,Any]], path: str) -> None:
     import csv
     fields = [
-        "jobid","name","state","nodes","ncpus","wall_s","cput_s","avg_used_cpus","cpu_eff",
+        "jobid","name","state","nodes","ncpus","ngpus","wall_s","cput_s","avg_used_cpus","cpu_eff",
         "used_mem_b","used_mem_gb","req_mem_b","req_mem_gb","mem_eff",
         "used_vmem_b","used_vmem_gb","req_vmem_b","req_vmem_gb","vmem_eff",
     ]
@@ -270,6 +299,7 @@ def write_csv(rows: List[Dict[str,Any]], path: str) -> None:
                 "state": r.get("state"),
                 "nodes": r.get("nodes"),
                 "ncpus": r.get("ncpus"),
+                "ngpus": r.get("ngpus"),
                 "wall_s": r.get("wall_s"),
                 "cput_s": r.get("cput_s"),
                 "avg_used_cpus": r.get("avg_used_cpus"),

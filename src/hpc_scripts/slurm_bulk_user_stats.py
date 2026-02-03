@@ -103,8 +103,47 @@ def run(cmd: List[str]) -> str:
     return subprocess.check_output(cmd, text=True, errors="ignore")
 
 
+def parse_gpus_from_tres(tres: str) -> Optional[int]:
+    if not tres:
+        return None
+    total = 0
+    seen = False
+    for part in tres.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if part.startswith("gres/gpu=") or part.startswith("gpu="):
+            val = part.split("=", 1)[1]
+            try:
+                total += int(float(val))
+                seen = True
+            except ValueError:
+                pass
+    return total if seen else None
+
+
+def parse_gpus_from_gres(gres: str) -> Optional[int]:
+    if not gres:
+        return None
+    total = 0
+    seen = False
+    for part in gres.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        toks = part.split(":")
+        if len(toks) >= 2 and toks[0] == "gpu":
+            try:
+                count = int(toks[-1])
+                total += count
+                seen = True
+            except ValueError:
+                pass
+    return total if seen else None
+
+
 # ---------- sacct parsing ----------
-SACCT_FIELDS = [
+SACCT_FIELDS_BASE = [
     "JobIDRaw",
     "JobName",
     "User",
@@ -117,6 +156,7 @@ SACCT_FIELDS = [
     "NNodes",
     "NodeList",
 ]
+SACCT_FIELDS = SACCT_FIELDS_BASE + ["AllocTres", "AllocGRES"]
 
 
 def parse_state(raw_state: str) -> str:
@@ -126,11 +166,11 @@ def parse_state(raw_state: str) -> str:
     return raw_state.split()[0].upper()
 
 
-def summarize_from_sacct_line(line: str) -> Optional[Dict[str, Any]]:
+def summarize_from_sacct_line(line: str, fields: List[str]) -> Optional[Dict[str, Any]]:
     parts = line.split("|")
-    if len(parts) < len(SACCT_FIELDS):
+    if len(parts) < len(fields):
         return None
-    data = {k: parts[i].strip() if i < len(parts) else "" for i, k in enumerate(SACCT_FIELDS)}
+    data = {k: parts[i].strip() if i < len(parts) else "" for i, k in enumerate(fields)}
     jobid_raw = data["JobIDRaw"]
     # Skip step records like 123.batch or 123.0
     if not jobid_raw or "." in jobid_raw:
@@ -141,6 +181,7 @@ def summarize_from_sacct_line(line: str) -> Optional[Dict[str, Any]]:
     state = parse_state(data["State"])
     ncpus = int(data["AllocCPUS"]) if data["AllocCPUS"].isdigit() else None
     nnodes = int(data["NNodes"]) if data["NNodes"].isdigit() else None
+    ngpus = parse_gpus_from_tres(data.get("AllocTres", "")) or parse_gpus_from_gres(data.get("AllocGRES", ""))
     wall_s = int(data["ElapsedRaw"]) if data["ElapsedRaw"].isdigit() else None
     cput_s = parse_slurm_time_to_seconds(data["TotalCPU"])
     used_mem_b = parse_size_to_bytes(data["MaxRSS"])
@@ -155,6 +196,7 @@ def summarize_from_sacct_line(line: str) -> Optional[Dict[str, Any]]:
         "state": state,
         "nodes": data.get("NodeList") or None,
         "ncpus": ncpus,
+        "ngpus": ngpus,
         "wall_s": wall_s,
         "cput_s": cput_s,
         "avg_used_cpus": avg_used_cpus,
@@ -174,28 +216,35 @@ def list_jobs_with_sacct(user: str, include_finished: bool, jobid: Optional[str]
         None,                      # final fallback: no filter (include all)
     ]
 
+    field_variants: List[List[str]] = [SACCT_FIELDS, SACCT_FIELDS_BASE]
+
     last_err: Optional[Exception] = None
     out = ""
-    for state_arg in state_variants:
-        cmd = [
-            "sacct",
-            "-n",
-            "-P",
-            f"--format={','.join(SACCT_FIELDS)}",
-        ]
-        if user:
-            cmd += ["-u", user]
-        if state_arg:
-            cmd += ["-s", state_arg]
-        if jobid:
-            cmd += ["-j", jobid]
-        try:
-            out = run(cmd)
-            last_err = None
+    fields_used: List[str] = SACCT_FIELDS
+    for fields in field_variants:
+        for state_arg in state_variants:
+            cmd = [
+                "sacct",
+                "-n",
+                "-P",
+                f"--format={','.join(fields)}",
+            ]
+            if user:
+                cmd += ["-u", user]
+            if state_arg:
+                cmd += ["-s", state_arg]
+            if jobid:
+                cmd += ["-j", jobid]
+            try:
+                out = run(cmd)
+                last_err = None
+                fields_used = fields
+                break
+            except subprocess.CalledProcessError as e:
+                last_err = e
+                continue
+        if last_err is None:
             break
-        except subprocess.CalledProcessError as e:
-            last_err = e
-            continue
 
     if last_err:
         raise last_err
@@ -205,7 +254,7 @@ def list_jobs_with_sacct(user: str, include_finished: bool, jobid: Optional[str]
         line = line.strip()
         if not line:
             continue
-        r = summarize_from_sacct_line(line)
+        r = summarize_from_sacct_line(line, fields_used)
         if r:
             rows.append(r)
     return rows
@@ -213,7 +262,7 @@ def list_jobs_with_sacct(user: str, include_finished: bool, jobid: Optional[str]
 
 # ---------- Output ----------
 def render_table(rows: List[Dict[str, Any]], name_max: int) -> None:
-    cols = ["JOBID", "STATE", "NAME", "NODES", "NCPUS", "WALL(h)", "CPUT(h)", "avgCPU", "CPUeff", "memUsed", "memReq", "memEff"]
+    cols = ["JOBID", "STATE", "NAME", "NODES", "NCPUS", "NGPUS", "WALL(h)", "CPUT(h)", "avgCPU", "CPUeff", "memUsed", "memReq", "memEff"]
     w = {c: len(c) for c in cols}
     table = []
     for r in rows:
@@ -226,6 +275,7 @@ def render_table(rows: List[Dict[str, Any]], name_max: int) -> None:
             "NAME": name,
             "NODES": r.get("nodes") or "n/a",
             "NCPUS": str(r["ncpus"] if r["ncpus"] is not None else "n/a"),
+            "NGPUS": str(r["ngpus"] if r.get("ngpus") is not None else "n/a"),
             "WALL(h)": secs_to_h(r["wall_s"]),
             "CPUT(h)": secs_to_h(r["cput_s"]),
             "avgCPU": f"{r['avg_used_cpus']:.2f}" if r["avg_used_cpus"] is not None else "n/a",
@@ -253,6 +303,7 @@ def write_csv(rows: List[Dict[str, Any]], path: str) -> None:
         "state",
         "nodes",
         "ncpus",
+        "ngpus",
         "wall_s",
         "cput_s",
         "avg_used_cpus",
@@ -274,6 +325,7 @@ def write_csv(rows: List[Dict[str, Any]], path: str) -> None:
                 "state": r.get("state"),
                 "nodes": r.get("nodes"),
                 "ncpus": r.get("ncpus"),
+                "ngpus": r.get("ngpus"),
                 "wall_s": r.get("wall_s"),
                 "cput_s": r.get("cput_s"),
                 "avg_used_cpus": r.get("avg_used_cpus"),
