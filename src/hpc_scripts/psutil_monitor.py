@@ -431,12 +431,12 @@ def main():
 
                 # --- GPU subplot (optional) ---
                 if have_gpu:
-                    ax_gpu.plot(tmins, gpu_util_series, linewidth=1.2, label="GPU util %")
+                    ax_gpu.plot(tmins, gpu_util_series, linewidth=1.2, color="purple", label="GPU util %")
                     ax_gpu.set_ylabel("GPU util %")
                     ax_gpu.set_ylim(0, max(100.0, max(gpu_util_series) if gpu_util_series else 100.0))
                     ax_gpu.grid(True, linestyle="--", alpha=0.4)
                     ax_gpu2 = ax_gpu.twinx()
-                    ax_gpu2.plot(tmins, gpu_mem_series, linewidth=1.0, linestyle=":", label="GPU mem %")
+                    ax_gpu2.plot(tmins, gpu_mem_series, linewidth=1.0, linestyle=":", color="orchid", label="GPU mem %")
                     ax_gpu2.set_ylabel("GPU memory %")
                     ax_gpu2.set_ylim(0, max(100.0, max(gpu_mem_series) if gpu_mem_series else 100.0))
                     lines1g, labels1g = ax_gpu.get_legend_handles_labels()
