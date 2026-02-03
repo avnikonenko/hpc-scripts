@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hpc-scripts"
-version = "0.1.0"
+version = "0.2"
 description = "Utilities for HPC clusters including PBS/Slurm job statistics and a psutil-based resource monitor."
 readme = "README.md"
 license = {file = "LICENSE"}
