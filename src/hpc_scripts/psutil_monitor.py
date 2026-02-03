@@ -278,7 +278,10 @@ def main():
     # Buffers for optional plotting
     times, cpu_series, mem_series = [], [], []
     gpu_util_series: list[float] = []
-    gpu_mem_series: list[float] = []
+    gpu_mem_pct_series: list[float] = []
+    gpu_mem_used_gb_series: list[Optional[float]] = []
+    gpu_mem_total_gb_series: list[Optional[float]] = []
+    gpu_count_series: list[Optional[int]] = []
 
     # --- Main loop ---
     while not stop:
@@ -317,7 +320,20 @@ def main():
             gpu_samples += 1
         if gpu_metrics:
             gpu_util_series.append(gpu_metrics.get("gpu_util_avg_pct", 0.0))
-            gpu_mem_series.append(gpu_metrics.get("gpu_mem_pct", 0.0))
+            gpu_mem_pct_series.append(gpu_metrics.get("gpu_mem_pct", 0.0))
+            gpu_mem_used_gb_series.append(
+                (gpu_metrics.get("gpu_mem_used") or 0) / (1024**3)
+            )
+            gpu_mem_total_gb_series.append(
+                (gpu_metrics.get("gpu_mem_total") or 0) / (1024**3)
+            )
+            gpu_count_series.append(int(gpu_metrics.get("gpu_count") or 0))
+        else:
+            gpu_util_series.append(None)  # keep alignment with time
+            gpu_mem_pct_series.append(None)
+            gpu_mem_used_gb_series.append(None)
+            gpu_mem_total_gb_series.append(None)
+            gpu_count_series.append(None)
 
         # Update running average and peaks
         samples += 1
@@ -424,27 +440,65 @@ def main():
                 print("Not enough samples to plot.")
 
             # GPU plot (separate file with _gpu suffix)
-            if gpu_enabled and gpu_util_series and args.plot:
+            if gpu_enabled and any(v is not None for v in gpu_util_series) and args.plot:
                 gpu_plot_path = args.plot
                 base, ext = os.path.splitext(gpu_plot_path)
                 if not ext:
                     ext = ".png"
                 gpu_plot_path = f"{base}_gpu{ext}"
-                fig2 = plt.figure(figsize=(9,3.5))
-                axg = plt.gca()
-                axg.plot(tmins, gpu_util_series, linewidth=1.2, label="GPU util %")
-                axg.set_xlabel("Time (min)")
+                fig2, (axg, axm) = plt.subplots(2, 1, figsize=(9,6), sharex=True)
+
+                def _clean(series):
+                    xs, ys = [], []
+                    for t, v in zip(tmins, series):
+                        if v is None:
+                            continue
+                        xs.append(t)
+                        ys.append(v)
+                    return xs, ys
+
+                # Util + mem%
+                t_u, util_y = _clean(gpu_util_series)
+                if util_y:
+                    axg.plot(t_u, util_y, linewidth=1.2, label="GPU util %")
+                t_mp, mp_y = _clean(gpu_mem_pct_series)
+                if mp_y:
+                    axg2 = axg.twinx()
+                    axg2.plot(t_mp, mp_y, linewidth=1.0, linestyle=":", color="tab:orange", label="GPU mem %")
+                    axg2.set_ylabel("GPU memory %")
+                    axg2.set_ylim(0, max(100.0, max(mp_y)))
+                    lines1, labels1 = axg.get_legend_handles_labels()
+                    lines2, labels2 = axg2.get_legend_handles_labels()
+                    axg.legend(lines1 + lines2, labels1 + labels2, loc="upper right")
+                else:
+                    axg.legend()
                 axg.set_ylabel("GPU util %")
-                axg.set_ylim(0, max(100.0, max(gpu_util_series) if gpu_util_series else 100.0))
+                axg.set_ylim(0, max(100.0, max(util_y) if util_y else 100.0))
                 axg.grid(True, linestyle="--", alpha=0.4)
-                axg2 = axg.twinx()
-                axg2.plot(tmins, gpu_mem_series, linewidth=1.0, linestyle=":", label="GPU mem %")
-                axg2.set_ylabel("GPU memory %")
-                axg2.set_ylim(0, max(100.0, max(gpu_mem_series) if gpu_mem_series else 100.0))
-                lines1, labels1 = axg.get_legend_handles_labels()
-                lines2, labels2 = axg2.get_legend_handles_labels()
-                axg.legend(lines1 + lines2, labels1 + labels2, loc="upper right")
-                plt.title("GPU monitor (NVML)")
+                axg.set_title("GPU monitor (NVML)")
+
+                # Memory (GiB) + GPU count
+                t_mu, mu_y = _clean(gpu_mem_used_gb_series)
+                t_mt, mt_y = _clean(gpu_mem_total_gb_series)
+                if mu_y:
+                    axm.plot(t_mu, mu_y, linewidth=1.1, color="tab:green", label="GPU mem used (GiB)")
+                if mt_y:
+                    axm.plot(t_mt, mt_y, linewidth=0.9, linestyle="--", color="tab:gray", label="GPU mem total (GiB)")
+                t_gc, gc_y = _clean(gpu_count_series)
+                if gc_y:
+                    axm2 = axm.twinx()
+                    axm2.step(t_gc, gc_y, where="post", color="tab:purple", label="# GPUs available")
+                    axm2.set_ylabel("GPU count")
+                    axm2.set_ylim(0, max(gc_y) + 0.5)
+                    lines1, labels1 = axm.get_legend_handles_labels()
+                    lines2, labels2 = axm2.get_legend_handles_labels()
+                    axm.legend(lines1 + lines2, labels1 + labels2, loc="upper right")
+                else:
+                    axm.legend()
+                axm.set_ylabel("GPU memory (GiB)")
+                axm.set_xlabel("Time (min)")
+                axm.grid(True, linestyle="--", alpha=0.35)
+
                 plt.tight_layout()
                 plt.savefig(gpu_plot_path, dpi=150)
                 print(f"Saved GPU plot: {gpu_plot_path}")
