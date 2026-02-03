@@ -4,7 +4,7 @@ Utilities for working with high-performance computing (HPC) environments. The sc
 help inspect PBS/Slurm job efficiency and monitor CPU and memory usage on a
 running system or process tree.
 
-Made with Codex help :)
+Made with Codex :)
 
 ## Dependencies
 

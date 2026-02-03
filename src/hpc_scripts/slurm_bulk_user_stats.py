@@ -176,6 +176,16 @@ def parse_gpu_mem_from_tres_usage(tres_usage: str) -> Optional[int]:
     return None
 
 
+def parse_float_field(val: str) -> Optional[float]:
+    if not val:
+        return None
+    try:
+        f = float(val)
+        return f
+    except ValueError:
+        return None
+
+
 # ---------- sacct parsing ----------
 SACCT_FIELDS_BASE = [
     "JobIDRaw",
@@ -191,9 +201,9 @@ SACCT_FIELDS_BASE = [
     "NodeList",
 ]  # minimal set that is widely supported
 # Extended field sets (tried in order; sacct may reject unknown fields on some clusters)
-SACCT_FIELDS_TRES = SACCT_FIELDS_BASE + ["AllocTRES", "ReqTRES", "TRESUsageInAve", "TRESUsageInMax"]
-SACCT_FIELDS_GRES = SACCT_FIELDS_BASE + ["AllocGRES", "ReqGRES", "Gres"]
-SACCT_FIELDS_FULL = SACCT_FIELDS_BASE + ["AllocTRES", "ReqTRES", "AllocGRES", "ReqGRES", "Gres", "TRESUsageInAve", "TRESUsageInMax"]
+SACCT_FIELDS_TRES = SACCT_FIELDS_BASE + ["AllocTRES", "ReqTRES", "TRESUsageInAve", "TRESUsageInMax", "AveGPU", "MaxGPU"]
+SACCT_FIELDS_GRES = SACCT_FIELDS_BASE + ["AllocGRES", "ReqGRES", "Gres", "AveGPU", "MaxGPU"]
+SACCT_FIELDS_FULL = SACCT_FIELDS_BASE + ["AllocTRES", "ReqTRES", "AllocGRES", "ReqGRES", "Gres", "TRESUsageInAve", "TRESUsageInMax", "AveGPU", "MaxGPU"]
 # Default/legacy alias for backward compatibility
 SACCT_FIELDS = SACCT_FIELDS_FULL
 
@@ -227,8 +237,14 @@ def summarize_from_sacct_line(line: str, fields: List[str]) -> Optional[Dict[str
         or parse_gpus_from_gres(data.get("ReqGRES", ""))
         or parse_gpus_from_gres(data.get("Gres", ""))
     )
-    gpu_util_avg_pct = parse_gpu_util_from_tres_usage(data.get("TRESUsageInAve", ""))
-    gpu_util_max_pct = parse_gpu_util_from_tres_usage(data.get("TRESUsageInMax", ""))
+    gpu_util_avg_pct = (
+        parse_gpu_util_from_tres_usage(data.get("TRESUsageInAve", ""))
+        or parse_float_field(data.get("AveGPU", ""))
+    )
+    gpu_util_max_pct = (
+        parse_gpu_util_from_tres_usage(data.get("TRESUsageInMax", ""))
+        or parse_float_field(data.get("MaxGPU", ""))
+    )
     gpu_mem_used_b = parse_gpu_mem_from_tres_usage(data.get("TRESUsageInMax", "")) or parse_gpu_mem_from_tres_usage(data.get("TRESUsageInAve", ""))
     wall_s = int(data["ElapsedRaw"]) if data["ElapsedRaw"].isdigit() else None
     cput_s = parse_slurm_time_to_seconds(data["TotalCPU"])
