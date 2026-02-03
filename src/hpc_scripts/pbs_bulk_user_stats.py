@@ -310,14 +310,19 @@ def aggregate(rows: List[Dict[str,Any]]) -> Dict[str, Any]:
     if mem_vals:
         peak_mem = max(mem_vals)
     unique_nodes: set[str] = set()
+    state_counts: Dict[str, int] = {}
     for r in rows:
         nodes_field = r.get("nodes")
-        if not nodes_field:
-            continue
-        for node in nodes_field.split(","):
-            node = node.strip()
-            if node:
-                unique_nodes.add(node)
+        if nodes_field:
+            for node in nodes_field.split(","):
+                node = node.strip()
+                if node:
+                    unique_nodes.add(node)
+
+        state = (r.get("state") or "").strip() or "?"
+        state_counts[state] = state_counts.get(state, 0) + 1
+
+    other_states = {k: v for k, v in state_counts.items() if k not in {"X", "R", "Q"}}
     return {
         "jobs": len(rows),
         "avg_CPUeff_%": mean([r["cpu_eff"]*100 for r in rows if r.get("cpu_eff") is not None]),
@@ -325,6 +330,9 @@ def aggregate(rows: List[Dict[str,Any]]) -> Dict[str, Any]:
         "avg_memEff_%": mean([r["mem_eff"]*100 for r in rows if r.get("mem_eff") is not None]),
         "max_mem_b": peak_mem,
         "unique_nodes": len(unique_nodes),
+        "state_counts": state_counts,
+        "state_other_total": sum(other_states.values()),
+        "state_other_breakdown": other_states,
     }
 
 # ---------- CLI ----------
@@ -376,14 +384,24 @@ def main():
     render_table(rows, name_max=args.name_max)
     agg = aggregate(rows)
     print("\nSummary:")
-    print(f"  jobs:        {agg['jobs']}")
+    print(f"  jobs:         {agg['jobs']}")
     print(f"  unique nodes: {agg['unique_nodes']}")
+    state_counts = agg.get("state_counts", {})
+    r_count = state_counts.get("R", 0)
+    q_count = state_counts.get("Q", 0)
+    x_count = state_counts.get("X", 0)
+    other_total = agg.get("state_other_total", 0)
+    print(f"  states:       R={r_count}  Q={q_count}  X={x_count}  other={other_total}")
+    other_breakdown = agg.get("state_other_breakdown") or {}
+    if other_breakdown:
+        detail = ", ".join(f"{k}={v}" for k, v in sorted(other_breakdown.items()))
+        print(f"    other breakdown: {detail}")
     if agg['avg_CPUeff_%'] == agg['avg_CPUeff_%']:
-        print(f"  mean CPUeff: {agg['avg_CPUeff_%']:.2f}%")
+        print(f"  mean CPUeff:  {agg['avg_CPUeff_%']:.2f}%")
     if agg['avg_avgCPU'] == agg['avg_avgCPU']:
-        print(f"  mean avgCPU: {agg['avg_avgCPU']:.2f}")
+        print(f"  mean avgCPU:  {agg['avg_avgCPU']:.2f}")
     if agg['avg_memEff_%'] == agg['avg_memEff_%']:
-        print(f"  mean memEff: {agg['avg_memEff_%']:.2f}%")
+        print(f"  mean memEff:  {agg['avg_memEff_%']:.2f}%")
     if agg.get('max_mem_b'):
         print(f"  max memUsed: {fmt_bytes(agg['max_mem_b'])}")
 
