@@ -142,6 +142,40 @@ def parse_gpus_from_gres(gres: str) -> Optional[int]:
     return total if seen else None
 
 
+def parse_gpu_util_from_tres_usage(tres_usage: str) -> Optional[float]:
+    """
+    Parse TRESUsageInAve/Max strings like 'cpu=0,energy=0,gres/gpumem=0,gres/gpuutil=23' and
+    return gpuutil percentage as float.
+    """
+    if not tres_usage:
+        return None
+    for part in tres_usage.split(","):
+        part = part.strip()
+        if part.startswith("gres/gpuutil="):
+            try:
+                return float(part.split("=", 1)[1])
+            except ValueError:
+                return None
+    return None
+
+
+def parse_gpu_mem_from_tres_usage(tres_usage: str) -> Optional[int]:
+    """
+    Parse gpumem (MiB) from TRESUsageInAve/Max strings.
+    """
+    if not tres_usage:
+        return None
+    for part in tres_usage.split(","):
+        part = part.strip()
+        if part.startswith("gres/gpumem="):
+            try:
+                mib = float(part.split("=", 1)[1])
+                return int(mib * 1024 * 1024)
+            except ValueError:
+                return None
+    return None
+
+
 # ---------- sacct parsing ----------
 SACCT_FIELDS_BASE = [
     "JobIDRaw",
@@ -157,9 +191,9 @@ SACCT_FIELDS_BASE = [
     "NodeList",
 ]  # minimal set that is widely supported
 # Extended field sets (tried in order; sacct may reject unknown fields on some clusters)
-SACCT_FIELDS_TRES = SACCT_FIELDS_BASE + ["AllocTRES", "ReqTRES"]
+SACCT_FIELDS_TRES = SACCT_FIELDS_BASE + ["AllocTRES", "ReqTRES", "TRESUsageInAve", "TRESUsageInMax"]
 SACCT_FIELDS_GRES = SACCT_FIELDS_BASE + ["AllocGRES", "ReqGRES", "Gres"]
-SACCT_FIELDS_FULL = SACCT_FIELDS_BASE + ["AllocTRES", "ReqTRES", "AllocGRES", "ReqGRES", "Gres"]
+SACCT_FIELDS_FULL = SACCT_FIELDS_BASE + ["AllocTRES", "ReqTRES", "AllocGRES", "ReqGRES", "Gres", "TRESUsageInAve", "TRESUsageInMax"]
 # Default/legacy alias for backward compatibility
 SACCT_FIELDS = SACCT_FIELDS_FULL
 
@@ -193,6 +227,9 @@ def summarize_from_sacct_line(line: str, fields: List[str]) -> Optional[Dict[str
         or parse_gpus_from_gres(data.get("ReqGRES", ""))
         or parse_gpus_from_gres(data.get("Gres", ""))
     )
+    gpu_util_avg_pct = parse_gpu_util_from_tres_usage(data.get("TRESUsageInAve", ""))
+    gpu_util_max_pct = parse_gpu_util_from_tres_usage(data.get("TRESUsageInMax", ""))
+    gpu_mem_used_b = parse_gpu_mem_from_tres_usage(data.get("TRESUsageInMax", "")) or parse_gpu_mem_from_tres_usage(data.get("TRESUsageInAve", ""))
     wall_s = int(data["ElapsedRaw"]) if data["ElapsedRaw"].isdigit() else None
     cput_s = parse_slurm_time_to_seconds(data["TotalCPU"])
     used_mem_b = parse_size_to_bytes(data["MaxRSS"])
@@ -208,6 +245,9 @@ def summarize_from_sacct_line(line: str, fields: List[str]) -> Optional[Dict[str
         "nodes": data.get("NodeList") or None,
         "ncpus": ncpus,
         "ngpus": ngpus,
+        "gpu_util_avg_pct": gpu_util_avg_pct,
+        "gpu_util_max_pct": gpu_util_max_pct,
+        "gpu_mem_used_b": gpu_mem_used_b,
         "wall_s": wall_s,
         "cput_s": cput_s,
         "avg_used_cpus": avg_used_cpus,
@@ -320,6 +360,10 @@ def write_csv(rows: List[Dict[str, Any]], path: str) -> None:
         "nodes",
         "ncpus",
         "ngpus",
+        "gpu_util_avg_pct",
+        "gpu_util_max_pct",
+        "gpu_mem_used_b",
+        "gpu_mem_used_gb",
         "wall_s",
         "cput_s",
         "avg_used_cpus",
@@ -342,6 +386,9 @@ def write_csv(rows: List[Dict[str, Any]], path: str) -> None:
                 "nodes": r.get("nodes"),
                 "ncpus": r.get("ncpus"),
                 "ngpus": r.get("ngpus"),
+                "gpu_util_avg_pct": r.get("gpu_util_avg_pct"),
+                "gpu_util_max_pct": r.get("gpu_util_max_pct"),
+                "gpu_mem_used_b": r.get("gpu_mem_used_b"),
                 "wall_s": r.get("wall_s"),
                 "cput_s": r.get("cput_s"),
                 "avg_used_cpus": r.get("avg_used_cpus"),
@@ -361,6 +408,7 @@ def write_csv(rows: List[Dict[str, Any]], path: str) -> None:
             for src, dest in [
                 ("used_mem_b", "used_mem_gb"),
                 ("req_mem_b", "req_mem_gb"),
+                ("gpu_mem_used_b", "gpu_mem_used_gb"),
             ]:
                 val = row.get(src)
                 row[dest] = round((val / (1024**3)), 2) if val is not None else None
@@ -399,6 +447,18 @@ def aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         for k, v in state_counts.items()
         if k not in {"RUNNING", "R", "PENDING", "PD", "COMPLETED", "CD"}
     }
+    gpu_util_avgs = [r.get("gpu_util_avg_pct") for r in rows if r.get("gpu_util_avg_pct") is not None]
+    gpu_hours_used = []
+    gpu_hours_req = []
+    for r in rows:
+        ng = r.get("ngpus")
+        wall = r.get("wall_s")
+        util = r.get("gpu_util_avg_pct")
+        if ng and wall:
+            gpu_hours_req.append(ng * wall / 3600.0)
+            if util is not None:
+                gpu_hours_used.append((util / 100.0) * ng * wall / 3600.0)
+
     return {
         "jobs": len(rows),
         "avg_CPUeff_%": mean([r["cpu_eff"] * 100 for r in rows if r.get("cpu_eff") is not None]),
@@ -409,6 +469,9 @@ def aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         "state_counts": state_counts,
         "state_other_total": sum(other_states.values()),
         "state_other_breakdown": other_states,
+        "avg_gpu_util_pct": mean(gpu_util_avgs),
+        "gpu_hours_used": sum(gpu_hours_used) if gpu_hours_used else float("nan"),
+        "gpu_hours_req": sum(gpu_hours_req) if gpu_hours_req else float("nan"),
     }
 
 
@@ -489,6 +552,14 @@ def main() -> None:
         print(f"  mean memEff:  {agg['avg_memEff_%']:.2f}%")
     if agg.get("max_mem_b"):
         print(f"  max memUsed:  {fmt_bytes(agg['max_mem_b'])}")
+    if agg.get("avg_gpu_util_pct") == agg.get("avg_gpu_util_pct"):
+        print(f"  mean GPU util: {agg['avg_gpu_util_pct']:.2f}%")
+    if agg.get("gpu_hours_req") == agg.get("gpu_hours_req"):
+        used = agg.get("gpu_hours_used")
+        if used == used:  # not NaN
+            print(f"  GPU hours:    used {used:.2f} / requested {agg['gpu_hours_req']:.2f}")
+        else:
+            print(f"  GPU hours:    requested {agg['gpu_hours_req']:.2f} (util data unavailable)")
 
     if args.csv:
         write_csv(rows, args.csv)
