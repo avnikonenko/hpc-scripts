@@ -15,6 +15,8 @@ Install the required Python packages with pip:
 | Core utilities | psutil | `pip install psutil` |
 | Plotting for `psutil-monitor` | matplotlib, numpy | `pip install matplotlib numpy` |
 | GPU monitoring for `psutil-monitor --gpu` | nvidia-ml-py3 (pynvml) | `pip install nvidia-ml-py3` |
+| Plot + GPU combo | psutil, matplotlib, numpy, nvidia-ml-py3 | `pip install psutil matplotlib numpy nvidia-ml-py3` |
+| All extras via pip extras | plot + GPU | `pip install .[all]` |
 
 The `pbs-bulk-user-stats` command also expects the PBS `qstat` utility to be
 available in your environment.
@@ -26,20 +28,30 @@ available in your environment.
 Clone the repository and install with pip:
 
 ```bash
-pip install .            # core utilities
-# or include plotting support for psutil-monitor
+# Core only
+pip install .
+
+# Core + plotting support
 pip install .[plot]
+
+# Core + GPU support
+pip install .[gpu]
+
+# Everything (plot + GPU)
+pip install .[all]
 ```
-or
+
+Install directly from GitHub:
 ```bash
-pip install git+https://github.com/avnikonenko/hpc-scripts
-# or include plotting support for psutil-monitor
+pip install "git+https://github.com/avnikonenko/hpc-scripts.git#egg=hpc-scripts"
 pip install "git+https://github.com/avnikonenko/hpc-scripts.git#egg=hpc-scripts[plot]"
+pip install "git+https://github.com/avnikonenko/hpc-scripts.git#egg=hpc-scripts[gpu]"
+pip install "git+https://github.com/avnikonenko/hpc-scripts.git#egg=hpc-scripts[all]"
 ```
 
 The base installation depends on [psutil](https://pypi.org/project/psutil/).
-The optional `plot` extra pulls in `matplotlib` and `numpy` for the `--plot`
-feature of `psutil-monitor`.
+The `plot` extra pulls in `matplotlib` and `numpy` for the `--plot` feature of `psutil-monitor`.
+The `gpu` extra installs `nvidia-ml-py3` to enable `--gpu`.
 
 ## CLI tools
 

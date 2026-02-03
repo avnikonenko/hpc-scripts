@@ -94,18 +94,18 @@ def proc_tree_cpu_mem(pid: int, prev_cpu: Dict[int,float]) -> tuple[float, int, 
     return (cpu_delta, rss_sum, count, new_prev, (root.pid if alive_root else 0))
 
 # ---------- GPU helpers ----------
-def init_nvml_or_die(enable_gpu: bool) -> bool:
+def init_nvml(enable_gpu: bool) -> bool:
     if not enable_gpu:
         return False
     if pynvml is None:
-        print("ERROR: --gpu requested but pynvml (nvidia-ml-py) is not installed.", file=sys.stderr)
-        sys.exit(1)
+        print("WARNING: --gpu requested but pynvml (nvidia-ml-py3) is not installed; GPU metrics disabled.", file=sys.stderr)
+        return False
     try:
         pynvml.nvmlInit()
         return True
     except Exception as e:  # pragma: no cover - hardware dependent
-        print(f"ERROR: NVML init failed: {e}", file=sys.stderr)
-        sys.exit(1)
+        print(f"WARNING: NVML init failed ({e}); GPU metrics disabled.", file=sys.stderr)
+        return False
 
 
 def shutdown_nvml(initialized: bool) -> None:
@@ -193,7 +193,7 @@ def main():
     print(f"CPU basis for %: {ncpu_basis}")
     print(f"Memory basis for %: {bytes_human(mem_basis)}")
 
-    gpu_enabled = init_nvml_or_die(args.gpu)
+    gpu_enabled = init_nvml(args.gpu)
     if gpu_enabled:
         try:
             gcount = pynvml.nvmlDeviceGetCount()

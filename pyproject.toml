@@ -20,6 +20,14 @@ plot = [
     "matplotlib",
     "numpy",
 ]
+gpu = [
+    "nvidia-ml-py3",
+]
+all = [
+    "matplotlib",
+    "numpy",
+    "nvidia-ml-py3",
+]
 
 [project.scripts]
 pbs-bulk-user-stats = "hpc_scripts.pbs_bulk_user_stats:main"
