@@ -62,6 +62,9 @@ When invoked with no `--user` or `--job` options:
 pbs-bulk-user-stats
 ```
 
+State codes (PBS):
+- `R` running, `Q` queued/waiting, `X` finished (requires `--include-finished`), other codes are printed under “other” in the summary.
+
 **Expected output:**
 ```
 $ pbs-bulk-user-stats
@@ -149,6 +152,9 @@ Use the `--help` option of each command to see all available options.
 
 Summarize CPU and memory usage for Slurm jobs and show which nodes the jobs are
 allocated to. The command relies on `sacct` being available in your `PATH`.
+
+State codes (Slurm):
+- `R`/`RUNNING`, `PD`/`PENDING`, `CD`/`COMPLETED`; other states (e.g., `F`, `CG`, `S`, `TO`) are grouped under “other” in the summary and listed in the breakdown.
 
 Examples:
 
