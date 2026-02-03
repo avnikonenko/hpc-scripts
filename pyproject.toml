@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "hpc-scripts"
 version = "0.1.0"
-description = "Utilities for HPC clusters including PBS job statistics and a psutil-based resource monitor."
+description = "Utilities for HPC clusters including PBS/Slurm job statistics and a psutil-based resource monitor."
 readme = "README.md"
 license = {file = "LICENSE"}
 requires-python = ">=3.9"
@@ -13,7 +13,7 @@ authors = [{name = "hpc-scripts contributors"}]
 dependencies = [
     "psutil",
 ]
-keywords = ["hpc", "pbs", "monitoring", "cluster", "psutil"]
+keywords = ["hpc", "pbs", "slurm", "monitoring", "cluster", "psutil"]
 
 [project.optional-dependencies]
 plot = [
@@ -24,6 +24,7 @@ plot = [
 [project.scripts]
 pbs-bulk-user-stats = "hpc_scripts.pbs_bulk_user_stats:main"
 psutil-monitor = "hpc_scripts.psutil_monitor:main"
+slurm-bulk-user-stats = "hpc_scripts.slurm_bulk_user_stats:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

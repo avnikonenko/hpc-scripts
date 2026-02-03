@@ -2,24 +2,24 @@
 
 This document describes the meaning of each column produced by the monitoring scripts in both their terminal output and CSV exports.
 
-## pbs-bulk-monitor (based on qsub -f output)
+## pbs-bulk-user-stats / slurm-bulk-user-stats
 
 ### Terminal columns
-- **JOBID**: PBS job identifier.
+- **JOBID**: Scheduler job identifier.
 - **STATE**: Current job state (e.g. `R` for running, `Q` for queued, `F` for finished).
-- **NAME**: Job name as supplied to PBS.
+- **NAME**: Job name as supplied to the scheduler.
 - **NODES**: Comma-separated list of execution hosts if known.
 - **NCPUS**: Number of CPU cores requested for the job.
 - **WALL(h)**: Elapsed wallclock time in hours.
 - **CPUT(h)**: Total CPU time summed over all cores in hours.
 - **avgCPU**: Average number of cores actively used (`CPUT / WALL`).
 - **CPUeff**: CPU efficiency, ratio of `avgCPU` to `NCPUS`.
-- **memUsed**: Peak resident memory used by the job (Can be not accurate, because PBS samples periodically, this peak can miss short spikes).
+- **memUsed**: Peak resident memory used by the job (PBS reports sample-based maxima; Slurm reports MaxRSS).
 - **memReq**: Memory requested at submission.
 - **memEff**: Memory efficiency, `memUsed / memReq`.
 
 ### CSV columns
-- **jobid**: PBS job identifier.
+- **jobid**: Scheduler job identifier.
 - **name**: Job name.
 - **state**: Job state.
 - **nodes**: Execution hosts.
@@ -33,11 +33,11 @@ This document describes the meaning of each column produced by the monitoring sc
 - **req_mem_b**: Memory requested in bytes.
 - **req_mem_gb**: Memory requested in gigabytes.
 - **mem_eff**: Memory efficiency (`used_mem_b / req_mem_b`).
-- **used_vmem_b**: Virtual memory used in bytes.
-- **used_vmem_gb**: Virtual memory used in gigabytes.
-- **req_vmem_b**: Requested virtual memory in bytes.
-- **req_vmem_gb**: Requested virtual memory in gigabytes.
-- **vmem_eff**: Virtual memory efficiency (`used_vmem_b / req_vmem_b`).
+- **used_vmem_b**: Virtual memory used in bytes (PBS only).
+- **used_vmem_gb**: Virtual memory used in gigabytes (PBS only).
+- **req_vmem_b**: Requested virtual memory in bytes (PBS only).
+- **req_vmem_gb**: Requested virtual memory in gigabytes (PBS only).
+- **vmem_eff**: Virtual memory efficiency (`used_vmem_b / req_vmem_b`) (PBS only).
 
 ## psutil-monitor
 

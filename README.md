@@ -1,8 +1,8 @@
 # hpc-scripts
 
 Utilities for working with high-performance computing (HPC) environments. The scripts
-help inspect PBS job efficiency and monitor CPU and memory usage on a running
-system or process tree.
+help inspect PBS/Slurm job efficiency and monitor CPU and memory usage on a
+running system or process tree.
 
 Made with Codex help :)
 
@@ -16,6 +16,8 @@ Install the required Python packages with pip:
 | Plotting for `psutil-monitor` | matplotlib, numpy | `pip install matplotlib numpy` |
 
 The `pbs-bulk-user-stats` command also expects the PBS `qstat` utility to be
+available in your environment.
+The `slurm-bulk-user-stats` command expects Slurm's `sacct` utility to be
 available in your environment.
 
 ## Installation
@@ -70,11 +72,13 @@ JOBID    STATE   NAME       NODES    NCPUS  WALL(h)  CPUT(h)  avgCPU  CPUeff  me
 0002      R      run2		pbs-2    176    38.59    3589.72  93.13  52.91%  50.02 GiB 256.00 GiB 19.54%
 ...
 Summary:
-  jobs:        5
-  mean CPUeff: 75.20%
-  mean avgCPU: 132.35
-  mean memEff: 82.50%
-  max memUsed: 230.16 GiB
+  jobs:         5
+  unique nodes: 3
+  states:       R=4  Q=1  X=0  other=0
+  mean CPUeff:  75.20%
+  mean avgCPU:  132.35
+  mean memEff:  82.50%
+  max memUsed:  230.16 GiB
 
 ```
 or if run inside a running PBS:
@@ -140,3 +144,32 @@ Peak memory (system): 76.15 GiB
 ```
 
 Use the `--help` option of each command to see all available options.
+
+### `slurm-bulk-user-stats`
+
+Summarize CPU and memory usage for Slurm jobs and show which nodes the jobs are
+allocated to. The command relies on `sacct` being available in your `PATH`.
+
+Examples:
+
+```bash
+# Summarize a specific job and write CSV output
+slurm-bulk-user-stats --job 12345 --csv stats.csv
+
+# Summarize all running jobs for the current user (default)
+slurm-bulk-user-stats
+
+# Summarize all jobs (including finished) for a specific user
+slurm-bulk-user-stats --user myuser --include-finished
+```
+
+When invoked with no `--user` or `--job` options:
+- On a login node (no `$SLURM_JOB_ID` present), it summarizes pending/running jobs for the current user.
+- Inside a running Slurm job (where `$SLURM_JOB_ID` is set), it automatically summarizes that specific job.
+
+```
+slurm-bulk-user-stats
+```
+
+The output mirrors the PBS version, showing job state, node list, CPU/memory
+usage, efficiency metrics, and a summary block with job counts and averages.
