@@ -168,22 +168,38 @@ def summarize_from_sacct_line(line: str) -> Optional[Dict[str, Any]]:
 def list_jobs_with_sacct(user: str, include_finished: bool, jobid: Optional[str]) -> List[Dict[str, Any]]:
     # Short state codes per sacct: PD=pending, R=running, CF=configuring, CG=completing, RQ=requeued, RS=resizing, S=suspended, SO=stageout
     states_active = ["PD", "R", "CF", "CG", "RQ", "RS", "S", "SO"]
-    state_arg = None if include_finished else ",".join(states_active)
-
-    cmd = [
-        "sacct",
-        "-n",
-        "-P",
-        f"--format={','.join(SACCT_FIELDS)}",
+    state_variants: List[Optional[str]] = [None] if include_finished else [
+        ",".join(states_active),   # full active set
+        "PD,R",                    # minimal, broadly supported set
+        None,                      # final fallback: no filter (include all)
     ]
-    if user:
-        cmd += ["-u", user]
-    if state_arg:
-        cmd += ["-s", state_arg]
-    if jobid:
-        cmd += ["-j", jobid]
 
-    out = run(cmd)
+    last_err: Optional[Exception] = None
+    out = ""
+    for state_arg in state_variants:
+        cmd = [
+            "sacct",
+            "-n",
+            "-P",
+            f"--format={','.join(SACCT_FIELDS)}",
+        ]
+        if user:
+            cmd += ["-u", user]
+        if state_arg:
+            cmd += ["-s", state_arg]
+        if jobid:
+            cmd += ["-j", jobid]
+        try:
+            out = run(cmd)
+            last_err = None
+            break
+        except subprocess.CalledProcessError as e:
+            last_err = e
+            continue
+
+    if last_err:
+        raise last_err
+
     rows = []
     for line in out.splitlines():
         line = line.strip()
