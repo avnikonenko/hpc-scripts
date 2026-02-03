@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "hpc-stats-scripts"
 version = "1.2"
-description = "Utilities for HPC clusters including PBS/Slurm job statistics and a psutil-based resource monitor."
+description = "Utilities for HPC clusters including PBS/Slurm job statistics and a psutil-based (CPU/GPU/Memory) resource monitor."
 readme = "README.md"
 license = {file = "LICENSE"}
 requires-python = ">=3.9"
