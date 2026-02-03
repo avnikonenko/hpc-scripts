@@ -43,10 +43,10 @@ pip install .[all]
 
 Install directly from GitHub:
 ```bash
-pip install "git+https://github.com/avnikonenko/hpc-scripts.git#egg=hpc-scripts"
-pip install "git+https://github.com/avnikonenko/hpc-scripts.git#egg=hpc-scripts[plot]"
-pip install "git+https://github.com/avnikonenko/hpc-scripts.git#egg=hpc-scripts[gpu]"
-pip install "git+https://github.com/avnikonenko/hpc-scripts.git#egg=hpc-scripts[all]"
+pip install "hpc-scripts @ git+https://github.com/avnikonenko/hpc-scripts.git"
+pip install "hpc-scripts[plot] @ git+https://github.com/avnikonenko/hpc-scripts.git"
+pip install "hpc-scripts[gpu] @ git+https://github.com/avnikonenko/hpc-scripts.git"
+pip install "hpc-scripts[all] @ git+https://github.com/avnikonenko/hpc-scripts.git"
 ```
 
 The base installation depends on [psutil](https://pypi.org/project/psutil/).
@@ -127,6 +127,7 @@ across all listed jobs.
 
 Real-time CPU and memory monitor for the system or a process tree.
 Use `--gpu` to also report aggregate GPU utilization and memory via NVML (requires `nvidia-ml-py3`).
+When `--csv`/`--plot` are used, metrics stream live to the terminal during the run; CSV/PNG files are written when the monitor exits (Ctrl+C, duration reached, or proc tree ends).
 
 GPU output fields (when `--gpu` is used):
 - **GPU util**: Average utilization across visible GPUs.
@@ -197,6 +198,7 @@ Use the `--help` option of each command to see all available options.
 Summarize CPU and memory usage for Slurm jobs and show which nodes the jobs are
 allocated to. The command relies on `sacct` being available in your `PATH`.
 The table includes `NGPUS` based on AllocTres/AllocGRES when present.
+If TRES GPU usage metrics are available, the summary also reports mean GPU util and GPU hours (used/requested).
 
 State codes (Slurm):
 - `R`/`RUNNING`, `PD`/`PENDING`, `CD`/`COMPLETED`; other states (e.g., `F`, `CG`, `S`, `TO`) are grouped under “other” in the summary and listed in the breakdown.
