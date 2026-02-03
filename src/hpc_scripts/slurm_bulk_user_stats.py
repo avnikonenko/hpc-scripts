@@ -155,8 +155,11 @@ SACCT_FIELDS_BASE = [
     "MaxRSS",
     "NNodes",
     "NodeList",
-]
-SACCT_FIELDS = SACCT_FIELDS_BASE + ["AllocTres", "AllocGRES"]
+]  # minimal set that is widely supported
+# Extended field sets (tried in order; sacct may reject unknown fields on some clusters)
+SACCT_FIELDS_TRES = SACCT_FIELDS_BASE + ["AllocTRES", "ReqTRES"]
+SACCT_FIELDS_GRES = SACCT_FIELDS_BASE + ["AllocGRES", "ReqGRES", "Gres"]
+SACCT_FIELDS_FULL = SACCT_FIELDS_BASE + ["AllocTRES", "ReqTRES", "AllocGRES", "ReqGRES", "Gres"]
 
 
 def parse_state(raw_state: str) -> str:
@@ -181,7 +184,13 @@ def summarize_from_sacct_line(line: str, fields: List[str]) -> Optional[Dict[str
     state = parse_state(data["State"])
     ncpus = int(data["AllocCPUS"]) if data["AllocCPUS"].isdigit() else None
     nnodes = int(data["NNodes"]) if data["NNodes"].isdigit() else None
-    ngpus = parse_gpus_from_tres(data.get("AllocTres", "")) or parse_gpus_from_gres(data.get("AllocGRES", ""))
+    ngpus = (
+        parse_gpus_from_tres(data.get("AllocTRES", ""))
+        or parse_gpus_from_tres(data.get("ReqTRES", ""))
+        or parse_gpus_from_gres(data.get("AllocGRES", ""))
+        or parse_gpus_from_gres(data.get("ReqGRES", ""))
+        or parse_gpus_from_gres(data.get("Gres", ""))
+    )
     wall_s = int(data["ElapsedRaw"]) if data["ElapsedRaw"].isdigit() else None
     cput_s = parse_slurm_time_to_seconds(data["TotalCPU"])
     used_mem_b = parse_size_to_bytes(data["MaxRSS"])
@@ -216,7 +225,12 @@ def list_jobs_with_sacct(user: str, include_finished: bool, jobid: Optional[str]
         None,                      # final fallback: no filter (include all)
     ]
 
-    field_variants: List[List[str]] = [SACCT_FIELDS, SACCT_FIELDS_BASE]
+    field_variants: List[List[str]] = [
+        SACCT_FIELDS_FULL,
+        SACCT_FIELDS_TRES,
+        SACCT_FIELDS_GRES,
+        SACCT_FIELDS_BASE,
+    ]
 
     last_err: Optional[Exception] = None
     out = ""
