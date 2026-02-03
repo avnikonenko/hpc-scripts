@@ -29,6 +29,12 @@ pip install .            # core utilities
 # or include plotting support for psutil-monitor
 pip install .[plot]
 ```
+or
+```bash
+pip install git+https://github.com/avnikonenko/hpc-scripts
+# or include plotting support for psutil-monitor
+pip install "git+https://github.com/avnikonenko/hpc-scripts.git#egg=hpc-scripts[plot]"
+```
 
 The base installation depends on [psutil](https://pypi.org/project/psutil/).
 The optional `plot` extra pulls in `matplotlib` and `numpy` for the `--plot`
