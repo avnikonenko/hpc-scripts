@@ -1,4 +1,4 @@
-# hpc-scripts
+# hpc-stats-scripts
 
 Utilities for working with high-performance computing (HPC) environments. The scripts
 help inspect PBS/Slurm job efficiency and monitor CPU and memory usage on a
@@ -43,10 +43,10 @@ pip install .[all]
 
 Install directly from GitHub:
 ```bash
-pip install "hpc-scripts @ git+https://github.com/avnikonenko/hpc-scripts.git"
-pip install "hpc-scripts[plot] @ git+https://github.com/avnikonenko/hpc-scripts.git"
-pip install "hpc-scripts[gpu] @ git+https://github.com/avnikonenko/hpc-scripts.git"
-pip install "hpc-scripts[all] @ git+https://github.com/avnikonenko/hpc-scripts.git"
+pip install "hpc-stats-scripts @ git+https://github.com/avnikonenko/hpc-stats-scripts.git"
+pip install "hpc-stats-scripts[plot] @ git+https://github.com/avnikonenko/hpc-stats-scripts.git"
+pip install "hpc-stats-scripts[gpu] @ git+https://github.com/avnikonenko/hpc-stats-scripts.git"
+pip install "hpc-stats-scripts[all] @ git+https://github.com/avnikonenko/hpc-stats-scripts.git"
 ```
 
 The base installation depends on [psutil](https://pypi.org/project/psutil/).

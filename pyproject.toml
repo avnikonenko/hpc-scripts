@@ -3,13 +3,13 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hpc-scripts"
+name = "hpc-stats-scripts"
 version = "1.2"
 description = "Utilities for HPC clusters including PBS/Slurm job statistics and a psutil-based resource monitor."
 readme = "README.md"
 license = {file = "LICENSE"}
 requires-python = ">=3.9"
-authors = [{name = "hpc-scripts contributors"}]
+authors = [{name = "hpc-stats-scripts contributors"}]
 dependencies = [
     "psutil",
 ]
