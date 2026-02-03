@@ -129,6 +129,14 @@ Real-time CPU and memory monitor for the system or a process tree.
 Use `--gpu` to also report aggregate GPU utilization and memory via NVML (requires `nvidia-ml-py3`).
 When `--csv`/`--plot` are used, metrics stream live to the terminal during the run; CSV/PNG files are written when the monitor exits (Ctrl+C, duration reached, or proc tree ends).
 
+Example output files (generated with `--plot` and `--csv`):
+
+- Plot (CPU + GPU stacked):
+
+  ![psutil-monitor example plot](docs/psutil-monitor-example.jpg)
+
+- CSV: `docs/psutil-monitor-example.csv`
+
 GPU output fields (when `--gpu` is used):
 - **GPU util**: Average utilization across visible GPUs.
 - **busyGPUs**: Sum of utilization fractions (e.g., two GPUs at 50% each → 1.0).
