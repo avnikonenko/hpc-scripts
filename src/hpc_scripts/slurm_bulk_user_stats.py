@@ -100,7 +100,8 @@ def pct_str(x: Optional[float]) -> str:
 
 
 def run(cmd: List[str]) -> str:
-    return subprocess.check_output(cmd, text=True, errors="ignore")
+    """Run a command and capture stderr to avoid noisy sacct warnings."""
+    return subprocess.check_output(cmd, text=True, errors="ignore", stderr=subprocess.PIPE)
 
 
 def parse_gpus_from_tres(tres: str) -> Optional[int]:
@@ -222,14 +223,14 @@ def list_jobs_with_sacct(user: str, include_finished: bool, jobid: Optional[str]
     # Short state codes per sacct: PD=pending, R=running, CF=configuring, CG=completing, RQ=requeued, RS=resizing, S=suspended, SO=stageout
     states_active = ["PD", "R", "CF", "CG", "RQ", "RS", "S", "SO"]
     state_variants: List[Optional[str]] = [None] if include_finished else [
-        ",".join(states_active),   # full active set
         "PD,R",                    # minimal, broadly supported set
+        ",".join(states_active),   # full active set (may be unsupported on some clusters)
         None,                      # final fallback: no filter (include all)
     ]
 
     field_variants: List[List[str]] = [
+        SACCT_FIELDS_TRES,  # preferred modern set (AllocGRES removed on newer Slurm)
         SACCT_FIELDS_FULL,
-        SACCT_FIELDS_TRES,
         SACCT_FIELDS_GRES,
         SACCT_FIELDS_BASE,
     ]
