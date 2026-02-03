@@ -160,6 +160,8 @@ SACCT_FIELDS_BASE = [
 SACCT_FIELDS_TRES = SACCT_FIELDS_BASE + ["AllocTRES", "ReqTRES"]
 SACCT_FIELDS_GRES = SACCT_FIELDS_BASE + ["AllocGRES", "ReqGRES", "Gres"]
 SACCT_FIELDS_FULL = SACCT_FIELDS_BASE + ["AllocTRES", "ReqTRES", "AllocGRES", "ReqGRES", "Gres"]
+# Default/legacy alias for backward compatibility
+SACCT_FIELDS = SACCT_FIELDS_FULL
 
 
 def parse_state(raw_state: str) -> str:
